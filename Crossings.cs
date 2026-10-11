@@ -22,6 +22,14 @@ namespace DealerSelfSupply
         private static readonly Dictionary<IntPtr, int> _landMasks = new Dictionary<IntPtr, int>();
         private static float _foundAt = -999f;
 
+        // New save loaded: the remembered areas belong to objects that are gone (their pointers can be reused).
+        public static void Reset()
+        {
+            _landMasks.Clear();
+            _spots.Clear();
+            _foundAt = -999f;
+        }
+
         private static List<Vector3> Spots()
         {
             if (Time.time - _foundAt > 30f || _spots.Exists(t => t == null))
@@ -75,10 +83,13 @@ namespace DealerSelfSupply
         {
             try
             {
-                var agent = d.Movement.Agent;
+                var agent = Compat.AgentOf(d);
+                if (agent == null) { Core.Log.Warning($"{d.FirstName} has no walking agent to switch."); return; }
                 // Back on land they get exactly the areas the game gave them, not "everything".
                 if (toIsland && (agent.areaMask & IslandMask) == 0) _landMasks[d.Pointer] = agent.areaMask;
-                int mask = toIsland ? IslandMask : (_landMasks.TryGetValue(d.Pointer, out int land) ? land : MainMask);
+                // (No record - e.g. the run was cut short before they crossed: whatever they have now, minus the island.)
+                int landMask = _landMasks.TryGetValue(d.Pointer, out int land) ? land : (agent.areaMask & MainMask) != 0 ? agent.areaMask & MainMask : MainMask;
+                int mask = toIsland ? IslandMask : landMask;
                 agent.areaMask = mask;
                 if (warp && NavMesh.SamplePosition(at, out NavMeshHit hit, 2f, mask))
                     Compat.Warp(d.Movement, hit.position); // same spot - re-attaches them to that navmesh

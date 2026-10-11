@@ -50,5 +50,12 @@ With the Greenhouse Island mod installed, dealers walk to shelves on the island:
 | EmptyShelfCooldownSeconds | 120 | Wait this long after finding nothing to do |
 | ShowNotifications | true | Show a notification when a dealer restocks or drops off cash |
 | NotificationSeconds | 10 | How long those notifications stay on screen |
+| RestockAtNight | true | Dealers who are in bed (inside their home at night) also go for product when sold out; false lets them sleep |
+| LogSlowFrames | false | Log a line whenever one of the mod's jobs takes over 8 ms (for tracking down stutters) |
 
-Assignments are saved in `UserData/DealerSelfSupply_Shelves.json`. Files from 1.0.0 still load.
+Values outside the sensible range are pulled back into it. If the settings file ever gets damaged (for example after switching between mod versions), the mod repairs it when the game starts and keeps the old copy as `DealerSelfSupply.cfg.bak`.
+
+Assignments are saved in `UserData/DealerSelfSupply_Shelves.json`. Files from 1.0.0 still load. The previous copy is kept as `DealerSelfSupply_Shelves.json.bak`.
+
+## Game versions
+IL2CPP builds of Schedule I: **0.4.6f13** and **0.4.7**. The game's NPC movement code changed in 0.4.7, so the mod looks the affected calls up by name when it starts and says which form it found in `MelonLoader/Latest.log` (the line starting `[Compat]`). A call the game doesn't have is replaced by Unity's own, or that one feature is skipped (for example the travel speed boost) - the mod itself keeps working. The Mono ("alternate") branch isn't supported.

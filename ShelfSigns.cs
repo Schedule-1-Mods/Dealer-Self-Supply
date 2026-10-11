@@ -35,7 +35,8 @@ namespace DealerSelfSupply
                 if (s.Go != null) UnityEngine.Object.Destroy(s.Go);
             _signs.Clear();
             _font = null;
-            _faceMats.Clear(); // mugshot textures can go with the scene
+            // Faces made for a dealer stay (they were the leak: a new picture per dealer per load); only dead ones go.
+            foreach (var key in _faceMats.Keys.ToList()) if (_faceMats[key] == null) _faceMats.Remove(key);
         }
 
         public static void Tick()

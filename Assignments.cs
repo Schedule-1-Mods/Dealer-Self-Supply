@@ -68,7 +68,10 @@ namespace DealerSelfSupply
                 }
                 catch (Exception e)
                 {
-                    MelonLogger.Warning("[Dealer Self-supply] Couldn't read shelf assignments: " + e.Message);
+                    // Keep the unreadable file - the next save would otherwise overwrite every save's assignments.
+                    try { File.Copy(FilePath, FilePath + ".unreadable", true); } catch { }
+                    _data = new Data();
+                    MelonLogger.Warning("[Dealer Self-supply] Couldn't read shelf assignments (kept as DealerSelfSupply_Shelves.json.unreadable): " + e.Message);
                 }
                 return _data;
             }
@@ -129,7 +132,11 @@ namespace DealerSelfSupply
         {
             try
             {
-                File.WriteAllText(FilePath, JsonSerializer.Serialize(Loaded, new JsonSerializerOptions { WriteIndented = true }));
+                // Written to a side file first and swapped in, so a crash mid-write can't leave half a file.
+                string tmp = FilePath + ".tmp";
+                File.WriteAllText(tmp, JsonSerializer.Serialize(Loaded, new JsonSerializerOptions { WriteIndented = true }));
+                if (File.Exists(FilePath)) File.Replace(tmp, FilePath, FilePath + ".bak");
+                else File.Move(tmp, FilePath);
             }
             catch (Exception e)
             {

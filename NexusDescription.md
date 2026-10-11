@@ -1,4 +1,4 @@
-SHORT DESCRIPTION (unchanged - still correct for 1.18.6)
+SHORT DESCRIPTION (unchanged - still correct for 1.20.0)
 ---------------------------
 Stop running product to your dealers and collecting their cash by hand. Give each or all dealers a shelf to restock from and a shelf to drop their earnings in, and they handle the rest themselves. They walk there, through town and back, and carry on dealing afterwards.
 
@@ -57,16 +57,19 @@ In UserData/DealerSelfSupply.cfg (created the first time the game loads the mod)
 - EmptyShelfCooldownSeconds (120)
 - ShowNotifications (true)
 - NotificationSeconds (10)
+- RestockAtNight (true): dealers who are in bed also go for product when sold out. Set it to false to let them sleep.
+- LogSlowFrames (false): log a line whenever one of the mod's jobs takes over 8 ms.
+(Values outside the sensible range are pulled back into it. A damaged settings file is repaired when the game starts; the old copy is kept as DealerSelfSupply.cfg.bak.)
 
 [size=4][b]Requirements[/b][/size]
-- Schedule I, IL2CPP version (the normal Steam branch). Built and tested on 0.4.6f13. The 0.4.7 open beta isn't fully tested yet - please report any problems there.
+- Schedule I, IL2CPP version (the normal Steam branch): 0.4.6f13 and 0.4.7. The game's NPC movement changed in 0.4.7 and the mod adapts to the version it finds (see the "[Compat]" line in Latest.log). 0.4.6f13 is the version it was played on; 0.4.7 support is new, so please post your Latest.log lines if something doesn't work there.
 - MelonLoader 0.7.x (made with 0.7.3).
 - Not for the Mono ("alternate") branch.
 - Multiplayer: the host runs it. Only the host sees the panels and the app.
 - Dealers need a shelf or locker you've placed, and must be hired.
 
 [size=4][b]Troubleshooting[/b][/size]
-- Check the mod loaded: MelonLoader/Latest.log should have a line like "[Dealer_Self-supply] Dealer Self-supply 1.18.6 loaded (game 0.4.6f13)". If it says "Failed to load Melon" instead, you're probably on the Mono "alternate" branch or an old MelonLoader.
+- Check the mod loaded: MelonLoader/Latest.log should have a line like "[Dealer_Self-supply] Dealer Self-supply 1.20.0 loaded (game 0.4.6f13)", followed by a "[Compat] ..." line saying which form of the game's movement calls it found. If it says "Failed to load Melon" instead, you're probably on the Mono "alternate" branch or an old MelonLoader.
 - Settings are in UserData/DealerSelfSupply.cfg (not MelonPreferences.cfg).
 - Dealers take all product (baggies, jars, bricks, and loose product, which they bag). They don't take ingredients or other items.
 - If a dealer won't go, their message says why (for example "Busy right now (...)"). Please post that, plus the log lines with "Dealer_Self-supply", in the comments.
@@ -75,6 +78,17 @@ In UserData/DealerSelfSupply.cfg (created the first time the game loads the mod)
 - Mods that pause or freeze far-away NPCs (like Siesta - NPC LOD) can stop dealers setting off. Try without them if dealers never move.
 - To uninstall, delete "Dealer Self-supply.dll". Your shelf picks are kept in UserData/DealerSelfSupply_Shelves.json, which you can delete too.
 
+
+CHANGELOG 1.20.0
+----------------
+- Works on Schedule I 0.4.7 as well as 0.4.6f13: the movement calls 0.4.7 changed are found by name at startup (the log says which form), instead of being tied to one version.
+- Talking to a dealer on a trip no longer cancels it: they wait where they stand and carry on to the same place afterwards (before, the trip ended and the game's routine took over).
+- Fixed the settings file getting a duplicate section when two versions of the mod used it (the game then ignored it). It is repaired at start; limits keep hand-edited values sensible.
+- "My shelf is gone" no longer appears for shelves that belong to a different save, or for shelves in a hidden building.
+- A failure in one part of the mod (a panel, the restock check) is logged once and stays in that part, instead of repeating every frame or stopping everything else.
+- Fixed memory that grew each time a save was loaded (sign faces, phone icon). Shelf names sort numbers properly (Rack 2 before Rack 10).
+- The shelf assignments file is written safely and keeps a .bak; an unreadable one is kept as .unreadable instead of being overwritten.
+- New settings: RestockAtNight, LogSlowFrames. Removed the old-text cleanup that only mattered for versions before 1.10.
 
 CHANGELOG 1.18.6
 ----------------

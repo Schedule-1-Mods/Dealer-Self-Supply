@@ -199,8 +199,11 @@ namespace DealerSelfSupply
         }
 
         // The app icon shipped in the mod (Assets/app_icon.png).
+        private static Sprite _iconSprite; // made once for the whole session (a new texture per load was a leak)
+
         private static Sprite LoadIcon()
         {
+            if (_iconSprite != null) return _iconSprite;
             try
             {
                 using Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("DealerSelfSupply.app_icon.png");
@@ -210,7 +213,7 @@ namespace DealerSelfSupply
                 var tex = new Texture2D(2, 2);
                 if (!ImageConversion.LoadImage(tex, bytes)) return null;
                 tex.hideFlags = HideFlags.DontUnloadUnusedAsset;
-                return Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+                return _iconSprite = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f));
             }
             catch { return null; }
         }

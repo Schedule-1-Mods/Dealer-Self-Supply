@@ -17,6 +17,7 @@ namespace DealerSelfSupply
 
         public void Dispose()
         {
+            if (_name == null || Core.LogSlowFrames == null || !Core.LogSlowFrames.Value) return; // only when asked for (setting LogSlowFrames)
             long now = Stopwatch.GetTimestamp();
             double ms = (now - _start) * 1000.0 / Stopwatch.Frequency;
             if (ms < 8.0 || _logged >= 60) return;

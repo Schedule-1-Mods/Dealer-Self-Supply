@@ -80,6 +80,10 @@ namespace DealerSelfSupply
             _homeward.Clear();
             _lastWhy.Clear();
             _sendWhenFree.Clear();
+            _everSeen.Clear();
+            _missingSince.Clear();
+            _warnedMissing.Clear();
+            _shelvesAt = -999f;
             _nextCheck = Time.time + 15f; // let the save finish loading
         }
 
@@ -157,15 +161,26 @@ namespace DealerSelfSupply
         // most every 5 seconds (the phone app used to do it several times a frame). force: a
         // menu just opened or you changed something - look now.
         private static float _shelvesAt = -999f;
+        private static readonly HashSet<string> _everSeen = new HashSet<string>(); // shelves met in this save, this session
 
         public static Dictionary<string, PlaceableStorageEntity> RefreshShelves(bool force = false)
         {
-            if (!force && Time.unscaledTime - _shelvesAt < 5f && !_shelves.Values.Any(s => s == null)) return _shelves;
+            if (!force && Time.unscaledTime - _shelvesAt < 5f) return _shelves;
             _shelvesAt = Time.unscaledTime;
-            _shelves.Clear();
+            // A shelf that's still alive stays on the list even if the scan doesn't find it (the scan
+            // only sees active objects, and a hidden building's shelves aren't): only shelves that
+            // have been destroyed - picked up - go.
+            foreach (string key in _shelves.Keys.ToList())
+            {
+                var old = _shelves[key];
+                if (old == null || old.isGhost) _shelves.Remove(key);
+            }
             foreach (var s in UnityEngine.Object.FindObjectsOfType<PlaceableStorageEntity>())
             {
-                if (s != null && !s.isGhost) _shelves[GuidOf(s)] = s;
+                if (s == null || s.isGhost) continue;
+                string guid = GuidOf(s);
+                _shelves[guid] = s;
+                _everSeen.Add(guid);
             }
             return _shelves;
         }
@@ -183,54 +198,65 @@ namespace DealerSelfSupply
         {
             if (!IsHost) return;
 
+            // Each job on its own: if the game has changed something one of them needs, the others
+            // keep going, and the log gets one line about it instead of one per frame (see Safe).
             if (Time.time >= _nextStep)
             {
                 _nextStep = Time.time + StepInterval;
-                using (new Probe("Dealer StepRuns")) StepRuns();
-                using (new Probe("Dealer RestoreSchedules")) RestoreSchedules();
-                try { using (new Probe("Dealer WatchDeals")) WatchDeals(); }
-                catch (Exception e) { Core.Log.Warning("Deal watch failed: " + e.Message); }
+                Safe.Run("Dealer trips", _stepRuns);
+                Safe.Run("Dealer schedules", _restoreSchedules);
+                Safe.Run("Dealer deals", _watchDeals);
             }
 
             if (Time.time >= _nextCheck)
             {
                 _nextCheck = Time.time + Mathf.Max(2f, Core.CheckInterval.Value);
-                try
-                {
-                    using (new Probe("Dealer RefreshShelves")) RefreshShelves();
-                    using (new Probe("Dealer ScrubTexts")) Speech.ScrubTexts();
-                    using (new Probe("Dealer CheckDealers")) CheckDealers();
-                }
-                catch (Exception e) { Core.Log.Warning("Dealer check failed: " + e.Message); }
+                Safe.Run("Shelf scan", _scan);
+                Safe.Run("Restock check", _checkDealers);
             }
         }
 
+        private static readonly Action _stepRuns = StepRuns, _restoreSchedules = RestoreSchedules, _watchDeals = WatchDeals,
+                                       _checkDealers = CheckDealers, _scan = () => RefreshShelves();
+
         // Sold out? Go get more.
         private static readonly HashSet<string> _warnedMissing = new HashSet<string>();
+        private static readonly Dictionary<string, float> _missingSince = new Dictionary<string, float>();
+
+        private static bool IsNight()
+        {
+            try { return NetworkSingleton<Il2CppScheduleOne.GameTime.TimeManager>.Instance.IsNight; }
+            catch { return false; }
+        }
 
         private static void CheckDealers()
         {
             foreach (Dealer d in HiredDealers())
             {
-                // Their shelf was picked up or moved to another save: say so once, instead of
-                // quietly never going.
+                // A shelf this dealer used in this save has been picked up (not seen for two minutes):
+                // say so once, instead of quietly never going. A shelf from another save isn't "gone" -
+                // all saves share one assignments file - so only shelves met this session count.
                 foreach (var role in new[] { ShelfRole.Supply, ShelfRole.Earnings })
                 {
                     string key = d.ID + "|" + role;
-                    if (Assignments.ShelvesFor(role, d.ID).Any() && ShelfFor(d, role) == null)
+                    bool lost = Assignments.ShelvesFor(role, d.ID).Any(g => _everSeen.Contains(g)) && ShelfFor(d, role) == null;
+                    if (lost)
                     {
-                        if (_warnedMissing.Add(key))
+                        if (!_missingSince.TryGetValue(key, out float since)) _missingSince[key] = since = Time.time;
+                        if (Time.time - since > 120f && _warnedMissing.Add(key))
                         {
                             string job = role == ShelfRole.Supply ? "product" : "earnings";
                             Core.Log.Msg($"{d.FirstName}'s {job} shelf isn't there any more (picked up?) - give them a new one.");
                             Speech.Text(d, $"My {job} shelf is gone. Can you give me a new one?");
                         }
                     }
-                    else _warnedMissing.Remove(key);
+                    else { _missingSince.Remove(key); _warnedMissing.Remove(key); }
                 }
 
                 if (IsOnRun(d)) continue;
                 if (_cooldownUntil.TryGetValue(d.Pointer, out float until) && Time.time < until) continue;
+                // Optional: leave dealers who are in bed (inside their home at night) alone.
+                if (!Core.RestockAtNight.Value && d.isInBuilding && IsNight()) continue;
                 if (ShelfFor(d, ShelfRole.Supply) != null && NeedsRestock(d)) LogWhy(d, "sold out", TryStart(d, false));
             }
         }
@@ -317,6 +343,15 @@ namespace DealerSelfSupply
             string busy = BusyBehaviour(d);
             if (busy != null) return "busy (" + busy + ")";
             return null;
+        }
+
+        // In a conversation with you: the dialogue screen is up, or the game's dialogue behaviour is in charge.
+        private static bool Talking(Dealer d) => DealerMenu.IsTalkingTo(d) || IsDialogue(d);
+
+        private static bool IsDialogue(Dealer d)
+        {
+            try { return d.Behaviour?.activeBehaviour?.TryCast<GenericDialogueBehaviour>() != null; }
+            catch { return false; }
         }
 
         // Walking to / waiting at a deal (the game's DealerAttendDealBehaviour).
@@ -406,7 +441,7 @@ namespace DealerSelfSupply
             d.Behaviour.ScheduleManager.DisableSchedule();
             if (d.isInBuilding) d.ExitBuilding("");
             var move = d.Movement;
-            try { run.OldSpeed = move.MoveSpeedMultiplier; move.MoveSpeedMultiplier = run.OldSpeed * Mathf.Max(0.5f, Core.SpeedMultiplier.Value); }
+            try { run.OldSpeed = Compat.GetSpeed(d); Compat.SetSpeed(d, run.OldSpeed * Mathf.Max(0.5f, Core.SpeedMultiplier.Value)); }
             catch { }
 
             _runs[d.Pointer] = run;
@@ -511,7 +546,8 @@ namespace DealerSelfSupply
                 if (inPoint == null) return false;
 
                 var move = run.Dealer.Movement;
-                var agent = move.Agent;
+                var agent = Compat.AgentOf(run.Dealer);
+                if (agent == null) return false;
                 if (!NavMesh.SamplePosition(inPoint.position, out NavMeshHit inHit, 2f, agent.areaMask)) return false;
                 Vector3 inside = inHit.position;
 
@@ -595,7 +631,7 @@ namespace DealerSelfSupply
                 {
                     Core.Log.Warning("Supply run failed: " + e.Message);
                     _runs.Remove(key);
-                    EndRun(run);
+                    try { EndRun(run); } catch (Exception e2) { Core.Log.Warning("Couldn't hand " + run.Dealer?.FirstName + " back to their routine cleanly: " + e2.Message); }
                 }
             }
         }
@@ -611,7 +647,9 @@ namespace DealerSelfSupply
             // tries to start anyway).
             if (run.Priority && IsDealing(d)) PauseDeal(d);
             bool dealInTheWay = !run.Priority && (d.currentContract != null || IsDealing(d));
-            if (!d.IsConscious || dealInTheWay || (BusyBehaviour(d) != null && !IsDealing(d)))
+            // Talking to them is not an interruption: the trip waits (see below) and carries on afterwards.
+            bool talking = Talking(d);
+            if (!d.IsConscious || dealInTheWay || (BusyBehaviour(d) != null && !IsDealing(d) && !talking))
             {
                 Core.Log.Msg($"{d.FirstName}'s shelf run was interrupted.");
                 EndRun(run);
@@ -635,9 +673,10 @@ namespace DealerSelfSupply
 
             var move = d.Movement;
 
-            // You're talking to them: the game holds them still. The trip waits - no stuck checks,
-            // no moving them on - and once you're done they set off again from where they stand.
-            if (DealerMenu.IsTalkingTo(d))
+            // You're talking to them: the game stops them where they stand (its dialogue behaviour takes
+            // them over). The trip waits - no stuck checks, no moving them on - and once you're done they
+            // set off again from there, to the same place.
+            if (talking)
             {
                 run.Held = true;
                 run.ProgressAt = Time.time;
@@ -733,7 +772,7 @@ namespace DealerSelfSupply
         {
             Dealer d = run.Dealer;
             var move = d.Movement;
-            if (move.IsMoving || move.HasDestination)
+            if (move.IsMoving || Compat.HasDestination(d))
             {
                 run.RefusedSince = 0f;
                 return false;
@@ -741,8 +780,8 @@ namespace DealerSelfSupply
             if (run.RefusedSince <= 0f) run.RefusedSince = Time.time;
             if (Time.time - run.RefusedSince >= RefusedSeconds)
             {
-                Core.Log.Msg($"{d.FirstName} can't find a way to {StopLabel(stop)} (paused={move.IsPaused}, " +
-                             $"on navmesh={(move.Agent != null && move.Agent.isOnNavMesh)}, doing={d.Behaviour?.activeBehaviour?.Name ?? "nothing"}) - stepping over there.");
+                Core.Log.Msg($"{d.FirstName} can't find a way to {StopLabel(stop)} (paused={Compat.IsPaused(d)}, " +
+                             $"on navmesh={(Compat.AgentOf(d) != null && Compat.AgentOf(d).isOnNavMesh)}, doing={d.Behaviour?.activeBehaviour?.Name ?? "nothing"}) - stepping over there.");
                 run.RefusedSince = 0f;
                 if (d.isInBuilding) d.ExitBuilding("");
                 Compat.Warp(move, stop.ShelfPoint);
@@ -764,7 +803,7 @@ namespace DealerSelfSupply
         {
             try
             {
-                if (d.Movement.IsPaused && !DealerMenu.IsTalkingTo(d)) d.Movement.ResumeMovement();
+                if (!Talking(d) && Compat.IsPaused(d)) Compat.Resume(d);
             }
             catch { }
         }
@@ -787,8 +826,8 @@ namespace DealerSelfSupply
             }
             if (Time.time - run.ProgressAt < StuckSeconds) return false;
 
-            string state = $"inside={d.isInBuilding}, moving={move.IsMoving}, destination={move.HasDestination}, paused={move.IsPaused}, " +
-                           $"agent={(move.Agent != null && move.Agent.enabled)}, on navmesh={(move.Agent != null && move.Agent.isOnNavMesh)}, " +
+            string state = $"inside={d.isInBuilding}, moving={move.IsMoving}, destination={Compat.HasDestination(d)}, paused={Compat.IsPaused(d)}, " +
+                           $"agent={(Compat.AgentOf(d) != null && Compat.AgentOf(d).enabled)}, on navmesh={(Compat.AgentOf(d) != null && Compat.AgentOf(d).isOnNavMesh)}, " +
                            $"doing={d.Behaviour?.activeBehaviour?.Name ?? "nothing"}";
             run.ProgressAt = Time.time;
             run.Unsticks++;
@@ -831,13 +870,13 @@ namespace DealerSelfSupply
         {
             Dealer d = run.Dealer;
             if (d == null) return;
-            try { d.Movement.MoveSpeedMultiplier = run.OldSpeed; } catch { }
+            Compat.SetSpeed(d, run.OldSpeed);
             // Cut short inside a building the game can't walk them out of: put them on the doorstep.
             if (run.Inside) { try { Compat.Warp(d.Movement, run.OutsidePoint); } catch { } run.Inside = false; }
             // Cut short out on the island (a deal came up): back to the game's walkable area.
             if (run.OnIsland) Crossings.Cross(d, d.Movement.FootPosition, false, warp: false);
             _awaitingSchedule[d.Pointer] = d;
-            RestoreSchedules();
+            try { RestoreSchedules(); } catch (Exception e) { Core.Log.Warning("Couldn't restore a dealer's routine yet: " + e.Message); }
         }
 
         // Hand dealers back to their schedule - but not while a behaviour (a deal, a fight) is in

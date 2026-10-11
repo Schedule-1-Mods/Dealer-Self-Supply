@@ -348,17 +348,36 @@ namespace DealerSelfSupply
             return text;
         }
 
-        // Sorts "2" before "10", so numbered shelves come out in order.
+        // Numbered shelves come out in order.
         private class NaturalOrder : IComparer<string>
         {
             public static readonly NaturalOrder Instance = new NaturalOrder();
 
+            // Runs of digits compare as numbers wherever they are in the name: "Rack 2" before "Rack 10".
             public int Compare(string a, string b)
             {
-                bool na = int.TryParse(a, out int ia), nb = int.TryParse(b, out int ib);
-                if (na && nb) return ia.CompareTo(ib);
-                if (na != nb) return na ? -1 : 1;
-                return string.Compare(a, b, StringComparison.OrdinalIgnoreCase);
+                a ??= ""; b ??= "";
+                int i = 0, j = 0;
+                while (i < a.Length && j < b.Length)
+                {
+                    if (char.IsDigit(a[i]) && char.IsDigit(b[j]))
+                    {
+                        int si = i, sj = j;
+                        while (i < a.Length && char.IsDigit(a[i])) i++;
+                        while (j < b.Length && char.IsDigit(b[j])) j++;
+                        string x = a.Substring(si, i - si).TrimStart('0'), y = b.Substring(sj, j - sj).TrimStart('0');
+                        if (x.Length != y.Length) return x.Length.CompareTo(y.Length);
+                        int c = string.CompareOrdinal(x, y);
+                        if (c != 0) return c;
+                    }
+                    else
+                    {
+                        int c = char.ToUpperInvariant(a[i]).CompareTo(char.ToUpperInvariant(b[j]));
+                        if (c != 0) return c;
+                        i++; j++;
+                    }
+                }
+                return (a.Length - i).CompareTo(b.Length - j);
             }
         }
     }

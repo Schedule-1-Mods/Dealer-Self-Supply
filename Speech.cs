@@ -1,7 +1,6 @@
 using Il2CppScheduleOne.DevUtilities;
 using Il2CppScheduleOne.Economy;
 using Il2CppScheduleOne.GameTime;
-using Il2CppScheduleOne.Messaging;
 using UnityEngine;
 
 namespace DealerSelfSupply
@@ -39,7 +38,6 @@ namespace DealerSelfSupply
         {
             _log.Clear();
             Unread = 0;
-            _scrubbed = false;
         }
 
         // red: a status message (on the way, on a deal, can't go...) - counts towards the red dot.
@@ -77,67 +75,5 @@ namespace DealerSelfSupply
             catch { return ""; }
         }
 
-        // --- Clearing out the texts 1.9.0 sent to the Messages app ---
-
-        private static bool _scrubbed;
-        private static readonly string[] OurTexts =
-        {
-            "On my way to the ", "Heading over to the ", "On a deal right now, I'll head over after.",
-            "Busy right now, I'll head over after.", "Dropped off $", "Grabbed ", "No room for the cash",
-            "Can't go: ", "Got it, I'll grab my product from the ", "Got it, I'll drop my cash in the ",
-            "Okay, I'll wait for you to bring me product.", "Okay, I'll hang on to the cash.",
-            "Pockets full", "Nothing to grab on the ", "Only unpackaged product on the ", "No cash to grab",
-            "No shelf set", "Can't reach the ",
-        };
-
-        private static bool IsOurs(string text) =>
-            text != null && OurTexts.Any(t => text.StartsWith(t) || text.Contains(" items from the ") && text.EndsWith("Back to work."));
-
-        public static void ScrubTexts()
-        {
-            if (_scrubbed) return;
-            _scrubbed = true;
-            int removed = 0;
-            foreach (Dealer d in SupplyRuns.HiredDealers())
-            {
-                try
-                {
-                    var convo = d.MSGConversation;
-                    if (convo == null) continue;
-                    bool changed = false;
-
-                    var history = convo.messageHistory;
-                    for (int i = history.Count - 1; i >= 0; i--)
-                    {
-                        var m = history[i];
-                        if (m == null || m.sender != Message.ESenderType.Other || !IsOurs(m.text)) continue;
-                        history.RemoveAt(i);
-                        removed++;
-                        changed = true;
-                    }
-
-                    var bubbles = convo.bubbles;
-                    for (int i = bubbles.Count - 1; i >= 0; i--)
-                    {
-                        var b = bubbles[i];
-                        if (b == null || !IsOurs(b.text)) continue;
-                        bubbles.RemoveAt(i);
-                        UnityEngine.Object.Destroy(b.gameObject);
-                        changed = true;
-                    }
-
-                    if (changed)
-                    {
-                        convo.RefreshPreviewText();
-                        convo.SetRead(true); // no unread dot left behind by our texts
-                    }
-                }
-                catch (Exception e)
-                {
-                    Core.Log.Warning($"Couldn't clear old texts from {d.FirstName}: {e.Message}");
-                }
-            }
-            if (removed > 0) Core.Log.Msg($"Cleared {removed} old dealer text(s) from the Messages app.");
-        }
     }
 }
