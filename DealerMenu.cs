@@ -6,7 +6,7 @@ using Il2CppScheduleOne.ObjectScripts;
 using Il2CppScheduleOne.UI;
 using UnityEngine;
 
-namespace DealerSupplyRun
+namespace DealerSelfSupply
 {
     // While you're talking to a hired dealer (look at them, press E), two blocks sit in the
     // top-left corner: Product and Earnings. Each has two dropdowns - the place (a property you
@@ -149,7 +149,7 @@ namespace DealerSupplyRun
             GUILayout.BeginVertical(UiKit.Grid);
             GUILayout.Label(role == ShelfRole.Supply ? "Product" : "Earnings", UiKit.Title, GUILayout.Height(TitleH - 1f));
             GUILayout.BeginVertical(UiKit.Cell, GUILayout.Height(InfoH - 1f));
-            GUILayout.Label(role == ShelfRole.Supply ? ProductStatus(d) : EarningsStatus(d), SupplyRuns.RunDescription(d) != null ? UiKit.CaptionRed : UiKit.Caption);
+            GUILayout.Label(role == ShelfRole.Supply ? ProductStatus(d) : EarningsStatus(d), SupplyRuns.RunDescription(d) != null ? UiKit.CaptionGo : UiKit.Caption);
             GUILayout.EndVertical();
 
             // Place dropdown.
@@ -251,9 +251,10 @@ namespace DealerSupplyRun
 
         private static void Select(Dealer d, ShelfRole role, Choice c)
         {
-            var live = SupplyRuns.RefreshShelves().Keys;
+            var live = SupplyRuns.RefreshShelves(force: true).Keys;
             if (c == null) Assignments.Clear(role, d.ID, live);
             else Assignments.Assign(role, c.Guid, d.ID, live);
+            Core.Log.Msg($"{d.FirstName}'s {(role == ShelfRole.Supply ? "product" : "earnings")} shelf: {(c == null ? "none" : c.Name + " at " + c.Place)}.");
             RebuildChoices();
 
             string job = role == ShelfRole.Supply ? "product" : "earnings";
@@ -275,7 +276,7 @@ namespace DealerSupplyRun
 
         private static void RebuildChoices()
         {
-            var shelves = SupplyRuns.RefreshShelves()
+            var shelves = SupplyRuns.RefreshShelves(force: true)
                 .Select(p => new Choice { Shelf = p.Value, Guid = p.Key, Place = PlaceOf(p.Value) })
                 .OrderBy(c => c.Place)
                 .ThenBy(c => SupplyRuns.ShelfLabel(c.Shelf), NaturalOrder.Instance)

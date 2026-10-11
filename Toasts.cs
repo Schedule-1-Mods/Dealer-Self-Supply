@@ -1,7 +1,7 @@
 using Il2CppScheduleOne.Economy;
 using UnityEngine;
 
-namespace DealerSupplyRun
+namespace DealerSelfSupply
 {
     // Dealer messages on screen: a stack of cards near the top left (clear of the screen edge
     // and the game's own icons), each with the dealer's face, name and what they said - red for
@@ -22,7 +22,7 @@ namespace DealerSupplyRun
         }
 
         private static readonly List<Card> _cards = new List<Card>(); // newest first
-        private static GUIStyle _bg, _name, _text, _textRed;
+        private static GUIStyle _bg, _name, _text, _textRed, _textGo;
 
         public static void Reset() => _cards.Clear();
 
@@ -63,7 +63,7 @@ namespace DealerSupplyRun
                     GUI.Box(new Rect(Left, y, Width, CardH), GUIContent.none, _bg);
                     if (c.Dealer != null) Portraits.DrawAt(new Rect(Left + 6f, y + 6f, CardH - 12f, CardH - 12f), c.Dealer);
                     GUI.Label(new Rect(Left + CardH + 2f, y + 6f, Width - CardH - 10f, 20f), c.Name, _name);
-                    GUI.Label(new Rect(Left + CardH + 2f, y + 27f, Width - CardH - 10f, 22f), c.Text, c.Red ? _textRed : _text);
+                    GUI.Label(new Rect(Left + CardH + 2f, y + 27f, Width - CardH - 10f, 22f), c.Text, Speech.OnTheWay(c.Text) ? _textGo : c.Red ? _textRed : _text);
 
                     GUI.color = old;
                     y += CardH + Gap;
@@ -84,6 +84,8 @@ namespace DealerSupplyRun
             _text.normal.textColor = new Color(0.9f, 0.9f, 0.92f);
             _textRed = new GUIStyle(_text) { fontStyle = FontStyle.Bold };
             _textRed.normal.textColor = new Color(1f, 0.36f, 0.3f);
+            _textGo = new GUIStyle(_textRed); // "On my way ..." in green, so it stands out
+            _textGo.normal.textColor = UiKit.Green;
         }
     }
 }

@@ -4,7 +4,7 @@ using Il2CppScheduleOne.GameTime;
 using Il2CppScheduleOne.Messaging;
 using UnityEngine;
 
-namespace DealerSupplyRun
+namespace DealerSelfSupply
 {
     // How dealers are talked about (she / he) and what they tell you. Their messages pop up in
     // the corner with their face, and are kept in the Dealer Self-supply app's message list. The "red"
@@ -51,6 +51,12 @@ namespace DealerSupplyRun
             if (red) Unread++;
             Toasts.Show(d, message, red);
         }
+
+        // "On my way to ..." (or "On her way to ...", "Already on my way, boss.") - shown in green
+        // so a dealer who's actually going stands out from the "$0, I'll go back home" ones.
+        public static bool OnTheWay(string text) =>
+            text != null && (text.StartsWith("On my way") || text.StartsWith("Already on my way")
+                             || text.StartsWith("On her way") || text.StartsWith("On his way"));
 
         // A dealer's latest message, if it's recent (seconds).
         public static Entry LatestFor(Dealer d, float maxAge)

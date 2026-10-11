@@ -5,7 +5,7 @@ using Il2CppScheduleOne.UI;
 using Il2CppScheduleOne.UI.Items;
 using UnityEngine;
 
-namespace DealerSupplyRun
+namespace DealerSelfSupply
 {
     // Shift-clicking cash in an open storage (your EARNINGS shelf) puts the whole stack into your
     // cash in one go. The game's own shift-click only moves up to $1,000 a click. If this runs

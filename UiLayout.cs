@@ -3,7 +3,7 @@ using MelonLoader;
 using MelonLoader.Utils;
 using UnityEngine;
 
-namespace DealerSupplyRun
+namespace DealerSelfSupply
 {
     // Lets you drag the mod's panels anywhere on screen. Each group of windows (the shelf panel,
     // the talk-to-dealer blocks, the phone app) keeps one offset from where it normally sits, so
@@ -27,7 +27,7 @@ namespace DealerSupplyRun
                     if (File.Exists(FilePath))
                         _offsets = JsonSerializer.Deserialize<Dictionary<string, float[]>>(File.ReadAllText(FilePath)) ?? _offsets;
                 }
-                catch (Exception e) { MelonLogger.Warning("[DealerSupplyRun] Couldn't read the panel layout: " + e.Message); }
+                catch (Exception e) { MelonLogger.Warning("[Dealer Self-supply] Couldn't read the panel layout: " + e.Message); }
                 return _offsets;
             }
         }
@@ -40,6 +40,11 @@ namespace DealerSupplyRun
         public static void Window(string group, int id, Rect rect, GUI.WindowFunction fn, string title)
         {
             Vector2 o = Offset(group);
+            // Never dragged (or saved) off screen: at least 80 px of the window stays visible.
+            float scale = GUI.matrix.m00 > 0f ? GUI.matrix.m00 : 1f;
+            float sw = Screen.width / scale, sh = Screen.height / scale;
+            o.x = Mathf.Clamp(o.x, 80f - rect.xMax, sw - 80f - rect.x);
+            o.y = Mathf.Clamp(o.y, -rect.y, sh - 40f - rect.y);
             var r = new Rect(rect.x + o.x, rect.y + o.y, rect.width, rect.height);
             Rect moved = GUI.Window(id, r, fn, title);
             if (moved.x != r.x || moved.y != r.y)
@@ -62,7 +67,7 @@ namespace DealerSupplyRun
             if (!_dirty || Input.GetMouseButton(0)) return;
             _dirty = false;
             try { File.WriteAllText(FilePath, JsonSerializer.Serialize(Offsets)); }
-            catch (Exception e) { MelonLogger.Warning("[DealerSupplyRun] Couldn't save the panel layout: " + e.Message); }
+            catch (Exception e) { MelonLogger.Warning("[Dealer Self-supply] Couldn't save the panel layout: " + e.Message); }
         }
     }
 }

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace DealerSupplyRun
+namespace DealerSelfSupply
 {
     // The look shared by both panels, after the wiki's dealer table: dark cells separated by thin
     // grid lines, white text, green only for what's assigned. (The default IMGUI skin is one flat
@@ -9,7 +9,7 @@ namespace DealerSupplyRun
     {
         public static readonly Color Green = new Color(0.55f, 0.8f, 0.2f);
 
-        public static GUIStyle Grid, Cell, CellMine, HeadCell, Title, Name, NameGreen, NameBig, Caption, CaptionGreen, CaptionRed,
+        public static GUIStyle Grid, Cell, CellMine, HeadCell, Title, Name, NameGreen, NameBig, Caption, CaptionGreen, CaptionRed, CaptionGo, CaptionWarn,
             On, Off, Button, Drop, DropAssigned, Entry, EntrySelected;
         private static GUIStyle _arrowDown, _arrowUp;
 
@@ -46,9 +46,13 @@ namespace DealerSupplyRun
             CaptionGreen.normal.textColor = Green;
             CaptionRed = new GUIStyle(Caption) { fontStyle = FontStyle.Bold };
             CaptionRed.normal.textColor = new Color(1f, 0.33f, 0.28f);
+            CaptionGo = new GUIStyle(CaptionRed); // "On my way ..." - same size as red, so rows don't shift
+            CaptionGo.normal.textColor = Green;
+            CaptionWarn = new GUIStyle(CaptionRed); // "Molly already uses ... Continue?"
+            CaptionWarn.normal.textColor = new Color(1f, 0.62f, 0.15f);
 
             // Tight lines: the default label spacing makes table rows grow past their height.
-            foreach (var s in new[] { Name, NameGreen, Caption, CaptionGreen, CaptionRed })
+            foreach (var s in new[] { Name, NameGreen, Caption, CaptionGreen, CaptionRed, CaptionGo, CaptionWarn })
             {
                 s.margin = new RectOffset(0, 0, 0, 0);
                 s.padding = new RectOffset(0, 0, 1, 1);
@@ -109,6 +113,28 @@ namespace DealerSupplyRun
             style.active.background = Solid(hover);
             style.focused.background = Solid(normal);
             style.normal.textColor = style.hover.textColor = style.active.textColor = style.focused.textColor = Color.white;
+        }
+
+        // A copy of a (readable) picture at size x size with rounded corners, like the game's
+        // app icons. radius is a fraction of the size.
+        public static Texture2D RoundedCopy(Texture2D src, int size, float radius)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            float r = size * radius;
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                Color c = src.GetPixelBilinear((x + 0.5f) / size, (y + 0.5f) / size);
+                // Distance into a rounded corner (0 outside the corner squares).
+                float dx = Mathf.Max(0f, Mathf.Max(r - (x + 0.5f), (x + 0.5f) - (size - r)));
+                float dy = Mathf.Max(0f, Mathf.Max(r - (y + 0.5f), (y + 0.5f) - (size - r)));
+                float edge = Mathf.Clamp01(r - Mathf.Sqrt(dx * dx + dy * dy) + 0.5f);
+                c.a *= dx > 0f && dy > 0f ? edge : 1f;
+                tex.SetPixel(x, y, c);
+            }
+            tex.Apply();
+            tex.hideFlags = HideFlags.DontUnloadUnusedAsset;
+            return tex;
         }
 
         // A filled circle on a transparent square (for notification dots).

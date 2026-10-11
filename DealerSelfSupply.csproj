@@ -2,14 +2,14 @@
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
-    <AssemblyName>Dealer Self-supply</AssemblyName>
-    <RootNamespace>DealerSupplyRun</RootNamespace>
+    <AssemblyName>✽ Dealer Self-supply</AssemblyName>
+    <RootNamespace>DealerSelfSupply</RootNamespace>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PlatformTarget>x64</PlatformTarget>
 
-    <!-- Your Schedule I install. Somewhere else? Build with: dotnet build -p:GameDir="D:\Games\Schedule I" -->
+    <!-- Your Schedule I install. Somewhere else? Build with: dotnet build -p:GameDir="D:GamesSchedule I" -->
     <GameDir Condition="'$(GameDir)' == ''">C:\Games 2\Steam Library\steamapps\common\Schedule I</GameDir>
     <MelonDir>$(GameDir)\MelonLoader\net6</MelonDir>
     <Il2CppAssembliesDir>$(GameDir)\MelonLoader\Il2CppAssemblies</Il2CppAssembliesDir>
@@ -18,12 +18,19 @@
     <OutputPath>$(GameDir)\Mods\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <!-- Just the mod DLL in Mods: no .pdb or .deps.json next to it -->
+    <DebugType>none</DebugType>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- MelonLoader core -->
     <Reference Include="MelonLoader">
       <HintPath>$(MelonDir)\MelonLoader.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(MelonDir)\0Harmony.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Il2CppInterop.Runtime">
@@ -54,6 +61,10 @@
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>$(Il2CppAssembliesDir)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>$(Il2CppAssembliesDir)\UnityEngine.UIModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityEngine.PhysicsModule">
@@ -91,10 +102,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Dealer faces for the shelf panel, named by dealer ID (DealerSupplyRun.Faces.<id>.png). -->
-    <EmbeddedResource Include="Assets\Faces\*.png" LogicalName="DealerSupplyRun.Faces.%(Filename).png" />
+    <!-- Dealer faces for the shelf panel, named by dealer ID (DealerSelfSupply.Faces.<id>.png). -->
+    <EmbeddedResource Include="Assets\Faces\*.png" LogicalName="DealerSelfSupply.Faces.%(Filename).png" />
     <!-- The phone app's icon. -->
-    <EmbeddedResource Include="Assets\app_icon.png" LogicalName="DealerSupplyRun.app_icon.png" />
+    <EmbeddedResource Include="Assets\app_icon.png" LogicalName="DealerSelfSupply.app_icon.png" />
   </ItemGroup>
 
 </Project>

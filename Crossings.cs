@@ -2,7 +2,7 @@ using Il2CppScheduleOne.Economy;
 using UnityEngine;
 using UnityEngine.AI;
 
-namespace DealerSupplyRun
+namespace DealerSelfSupply
 {
     // Walking onto Greenhouse Island (the Greenhouse Island mod) instead of being warped there.
     //
@@ -19,6 +19,7 @@ namespace DealerSupplyRun
         private const int MainMask = ~IslandMask;
 
         private static readonly List<Transform> _spots = new List<Transform>();
+        private static readonly Dictionary<IntPtr, int> _landMasks = new Dictionary<IntPtr, int>();
         private static float _foundAt = -999f;
 
         private static List<Vector3> Spots()
@@ -46,17 +47,27 @@ namespace DealerSupplyRun
             return NavMesh.SamplePosition(p, out _, 2f, IslandMask) && !NavMesh.SamplePosition(p, out _, 2f, MainMask);
         }
 
-        // The handover spot that makes for the shortest walk from -> spot -> to.
-        public static bool TryBest(Vector3 from, Vector3 to, out Vector3 spot)
+        // The handover spot that makes for the shortest walk from -> spot -> to - out of the ones
+        // the dealer can actually walk to from here (reachable), if any are. onIsland: which
+        // side they're on now; the spot is snapped onto that side's walkable area, so the game
+        // accepts it as a destination.
+        public static bool TryBest(Vector3 from, Vector3 to, bool onIsland, Func<Vector3, bool> reachable, out Vector3 spot)
         {
             spot = default;
-            float best = float.MaxValue;
-            foreach (var s in Spots())
+            int mask = onIsland ? IslandMask : MainMask;
+            float best = float.MaxValue, bestAny = float.MaxValue;
+            Vector3 any = default;
+            foreach (var raw in Spots())
             {
+                Vector3 s = NavMesh.SamplePosition(raw, out NavMeshHit hit, 2f, mask) ? hit.position : raw;
                 float d = Vector3.Distance(from, s) + Vector3.Distance(s, to);
-                if (d < best) { best = d; spot = s; }
+                if (d < bestAny) { bestAny = d; any = s; }
+                bool ok;
+                try { ok = reachable == null || reachable(s); } catch { ok = true; }
+                if (ok && d < best) { best = d; spot = s; }
             }
-            return best < float.MaxValue;
+            if (best == float.MaxValue && bestAny < float.MaxValue) spot = any; // none reachable: nearest, the stuck-check takes it from there
+            return bestAny < float.MaxValue;
         }
 
         // Switch the dealer onto the island's walkable area (or back), standing where they are.
@@ -65,10 +76,12 @@ namespace DealerSupplyRun
             try
             {
                 var agent = d.Movement.Agent;
-                int mask = toIsland ? IslandMask : MainMask;
+                // Back on land they get exactly the areas the game gave them, not "everything".
+                if (toIsland && (agent.areaMask & IslandMask) == 0) _landMasks[d.Pointer] = agent.areaMask;
+                int mask = toIsland ? IslandMask : (_landMasks.TryGetValue(d.Pointer, out int land) ? land : MainMask);
                 agent.areaMask = mask;
                 if (warp && NavMesh.SamplePosition(at, out NavMeshHit hit, 2f, mask))
-                    d.Movement.Warp(hit.position); // same spot - re-attaches them to that navmesh
+                    Compat.Warp(d.Movement, hit.position); // same spot - re-attaches them to that navmesh
                 Core.Log.Msg($"{d.FirstName} is walking {(toIsland ? "onto" : "off")} Greenhouse Island.");
             }
             catch (Exception e)

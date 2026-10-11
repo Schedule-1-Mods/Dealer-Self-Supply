@@ -2,7 +2,7 @@ using System.Reflection;
 using Il2CppScheduleOne.Economy;
 using UnityEngine;
 
-namespace DealerSupplyRun
+namespace DealerSelfSupply
 {
     // Draws a dealer's face in the IMGUI panels. GUI.DrawTexture is stripped in this game build,
     // so the picture goes in as a box background (stretched to fit). Where the face comes from,
@@ -33,6 +33,9 @@ namespace DealerSupplyRun
             GUI.Box(r, initials, _initials);
         }
 
+        // The face picture itself (for the shelf signs), or null if there's none.
+        public static Texture2D TextureFor(Dealer d) => d == null ? null : StyleFor(d)?.normal.background;
+
         private static GUIStyle StyleFor(Dealer d)
         {
             string id = d.ID;
@@ -55,7 +58,7 @@ namespace DealerSupplyRun
             Texture2D tex = null;
             try
             {
-                using Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("DealerSupplyRun.Faces." + dealerId + ".png");
+                using Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("DealerSelfSupply.Faces." + dealerId + ".png");
                 if (stream != null)
                 {
                     byte[] bytes = new byte[stream.Length];

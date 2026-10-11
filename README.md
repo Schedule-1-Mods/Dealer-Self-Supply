@@ -22,13 +22,13 @@ Each dealer has one product shelf and one EARNINGS shelf. Several dealers can sh
 **Collecting the cash:** open your EARNINGS shelf and **Shift-click** the cash. The whole stack goes into your cash in one go (the game on its own only moves $1,000 per click).
 
 ## What dealers do
-- **Sold out** (all their slots empty): they walk to their product shelf and take packaged product (baggies, jars, bricks) until they're full.
-- **Heading home after dealing**: deals happen on the game's own timing. Once a dealer finishes a deal and has no other deal lined up, they stop at EARNINGS on the way home and drop off all their cash. It goes onto the cash stack already there, or into an empty slot.
+- **Sold out** (all their slots empty): they walk to their product shelf and take its product until they're full. Baggies, jars and bricks go as they are; loose product gets bagged up on the way (no baggies needed on the shelf), because dealers can only sell packaged product. Once every slot is filled they say **"Inventory full, starting to deal."** (or, if the shelf ran out first, that they took everything on it).
+- **Heading home after dealing**: deals happen on the game's own timing. Once a dealer finishes a deal and has no other deal lined up, they stop at EARNINGS on the way home and drop off all their cash. It goes onto the cash stack already there, or into an empty slot. Every cash drop also tops them up from their product shelf, so they head back out with a full inventory.
 - If they've also sold out, they do both in one trip: EARNINGS first, then product.
 
 Afterwards they go back to their usual routine. **Send them to their shelves now** on the shelf panel sends them right away to do whatever they can.
 
-A dealer won't set off while they're on a deal, knocked out or busy with something else. If a new deal comes up mid-trip, they go to the deal and finish the trip afterwards. If they can't walk all the way to a shelf, they walk as close as they can and step the rest. If a trip takes too long, they're warped there.
+**When you send them** (shelf panel, dealer chat or phone app), your orders come first: they go straight away, even mid-deal. The deal waits until they're done. With no cash to drop off they say "I have $0, I'll go back home." On their own, a dealer won't set off while they're on a deal, knocked out or busy with something else. If a new deal comes up mid-trip, they go to the deal and finish the trip afterwards. If they can't walk all the way to a shelf, they walk as close as they can and step the rest. If a trip takes too long, they're warped there.
 
 In multiplayer only the host runs this, and only the host sees the options.
 
@@ -39,7 +39,7 @@ A **Dealer Self-supply** app sits on the phone's home screen. Tap it for a table
 ## Greenhouse Island
 With the Greenhouse Island mod installed, dealers walk to shelves on the island: down the walkway and into the dome, then back the same way. The island's walkable area doesn't join up with the game's, so they switch over at the foot of each walkway, where the two overlap. There's no visible jump.
 
-## Settings (`UserData/MelonPreferences.cfg`, `[DealerSupplyRun]`)
+## Settings (`UserData/DealerSelfSupply.cfg`)
 | Setting | Default | |
 |---|---|---|
 | CheckIntervalSeconds | 20 | How often dealers check whether they've sold out |
@@ -51,4 +51,4 @@ With the Greenhouse Island mod installed, dealers walk to shelves on the island:
 | ShowNotifications | true | Show a notification when a dealer restocks or drops off cash |
 | NotificationSeconds | 10 | How long those notifications stay on screen |
 
-Assignments are saved in `Mods/DealerSupplyRun_Shelves.json`. Files from 1.0.0 still load.
+Assignments are saved in `UserData/DealerSelfSupply_Shelves.json`. Files from 1.0.0 still load.

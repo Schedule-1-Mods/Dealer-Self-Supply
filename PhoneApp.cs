@@ -8,7 +8,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
 
-namespace DealerSupplyRun
+namespace DealerSelfSupply
 {
     // A "Dealer Self-supply" app on the phone's home screen. Tapping it opens an overview of every
     // dealer - face, product shelf, earnings shelf, what they're doing, what they're carrying -
@@ -43,10 +43,41 @@ namespace DealerSupplyRun
         {
             if (_open && !PhoneOpen()) _open = false; // phone put away
             UpdateBadge();
-            if (_icon != null || Time.time < _nextTry || !SupplyRuns.IsHost) return;
+            if (Time.time < _nextTry || !SupplyRuns.IsHost) return;
             _nextTry = Time.time + 2f;
+            if (_icon != null) { KeepIconPlaced(); return; }
             try { CreateIcon(); }
             catch (Exception e) { Core.Log.Warning("Couldn't add the phone app: " + e.Message); _nextTry = Time.time + 30f; }
+        }
+
+        // Where the home screen's app icons live. Phone mods built on S1API move them into a
+        // scrolling list; the icon has to go there too, or it sits in the old, hidden grid.
+        private static Transform IconParent(HomeScreen home)
+        {
+            try
+            {
+                var scroll = home.transform.Find("AppIconsScrollView/Viewport/AppIcons");
+                if (scroll != null) return scroll;
+            }
+            catch { }
+            return home.appIconContainer;
+        }
+
+        // Keeps the icon in the right list if another mod rearranges the home screen after us.
+        private static void KeepIconPlaced()
+        {
+            try
+            {
+                var home = PlayerSingleton<HomeScreen>.Instance;
+                if (home == null || _icon == null) return;
+                var parent = IconParent(home);
+                if (parent != null && _icon.transform.parent != parent)
+                {
+                    _icon.transform.SetParent(parent, false);
+                    Core.Log.Msg("Moved the Dealer Self-supply app icon into the phone's app list.");
+                }
+            }
+            catch { }
         }
 
         private static void CreateIcon()
@@ -54,7 +85,7 @@ namespace DealerSupplyRun
             var home = PlayerSingleton<HomeScreen>.Instance;
             if (home == null || home.appIconPrefab == null || home.appIconContainer == null) return;
 
-            _icon = UnityEngine.Object.Instantiate(home.appIconPrefab, home.appIconContainer);
+            _icon = UnityEngine.Object.Instantiate(home.appIconPrefab, IconParent(home));
             _icon.name = "DealerSupplyApp";
             var label = _icon.transform.Find("Label")?.GetComponent<Text>();
             if (label != null) label.text = Title;
@@ -99,9 +130,11 @@ namespace DealerSupplyRun
         // --- Always on screen: the app's icon at the top left, next to the game's Messages icon,
         // with a red dot while there are red messages you haven't seen in the app. ---
 
-        private const float HudX = 36f, HudY = 10f, HudSize = 24f;
+        private const float HudX = 36f, HudY = 10f, HudSize = 24f; // fallback if the game's icon can't be found
         private static GUIStyle _hudIcon, _hudDot;
         private static bool _hudTried;
+        private static readonly Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<Vector3> _corners =
+            new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<Vector3>(4);
 
         public static void DrawHud()
         {
@@ -114,15 +147,55 @@ namespace DealerSupplyRun
                 if (sprite != null)
                 {
                     _hudIcon = new GUIStyle();
-                    _hudIcon.normal.background = sprite.texture;
+                    // Rounded corners, like the game's Messages icon.
+                    _hudIcon.normal.background = UiKit.RoundedCopy(sprite.texture, 128, 0.24f);
                 }
                 _hudDot = new GUIStyle();
                 _hudDot.normal.background = UiKit.Circle(new Color(0.92f, 0.2f, 0.2f), 32);
             }
             if (_hudIcon == null) return;
-            GUI.Box(new Rect(HudX, HudY, HudSize, HudSize), GUIContent.none, _hudIcon);
-            if (Speech.Unread > 0)
-                GUI.Box(new Rect(HudX + HudSize - 7f, HudY - 3f, 10f, 10f), GUIContent.none, _hudDot);
+            if (GamePopupsShowing()) return; // don't cover the game's pop-ups (e.g. "Wages paid")
+
+            Rect r = HudRect();
+            GUI.Box(r, GUIContent.none, _hudIcon);
+            float dot = r.height * 0.42f;
+            GUI.Box(new Rect(r.xMax - dot * 0.6f, r.y - dot * 0.4f, dot, dot), GUIContent.none, _hudDot);
+        }
+
+        // The game's own pop-ups stack down the top-left corner, right where this icon sits.
+        private static bool GamePopupsShowing()
+        {
+            try
+            {
+                var entries = Singleton<Il2CppScheduleOne.UI.NotificationsManager>.Instance?.entries;
+                return entries != null && entries.Count > 0;
+            }
+            catch { return false; }
+        }
+
+        // To the right of the game's own Messages icon (top left): same size and height, with a
+        // clear gap between them. Always that spot, so it never lands on the Messages icon.
+        private static Rect HudRect()
+        {
+            try
+            {
+                var hud = Singleton<Il2CppScheduleOne.UI.HUD>.Instance;
+                var prompt = hud?.UnreadMessagesPrompt;
+                if (prompt != null)
+                {
+                    prompt.GetWorldCorners(_corners);
+                    Camera cam = hud.canvas != null && hud.canvas.renderMode != RenderMode.ScreenSpaceOverlay ? hud.canvas.worldCamera : null;
+                    Vector2 a = RectTransformUtility.WorldToScreenPoint(cam, _corners[0]); // bottom left
+                    Vector2 b = RectTransformUtility.WorldToScreenPoint(cam, _corners[2]); // top right
+                    float size = b.y - a.y;
+                    if (size > 4f)
+                    {
+                        return new Rect(b.x + size * 0.7f, Screen.height - b.y, size, size);
+                    }
+                }
+            }
+            catch { }
+            return new Rect(HudX, HudY, HudSize, HudSize);
         }
 
         // The app icon shipped in the mod (Assets/app_icon.png).
@@ -130,7 +203,7 @@ namespace DealerSupplyRun
         {
             try
             {
-                using Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("DealerSupplyRun.app_icon.png");
+                using Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("DealerSelfSupply.app_icon.png");
                 if (stream == null) return null;
                 byte[] bytes = new byte[stream.Length];
                 stream.Read(bytes, 0, bytes.Length);
@@ -215,9 +288,9 @@ namespace DealerSupplyRun
 
                 GUILayout.BeginVertical(any ? UiKit.CellMine : UiKit.Cell, GUILayout.Width(NameW), GUILayout.Height(RowH));
                 GUILayout.FlexibleSpace();
-                Fixed(d.FirstName + " " + d.LastName, any ? UiKit.NameGreen : UiKit.Name, NameW);
+                Fixed(d.FirstName + " " + d.LastName, UiKit.Name, NameW);
                 string activity = Activity(d, out bool alert);
-                Fixed(activity, alert ? UiKit.CaptionRed : UiKit.Caption, NameW);
+                Fixed(activity, Speech.OnTheWay(activity) ? UiKit.CaptionGo : alert ? UiKit.CaptionRed : UiKit.Caption, NameW);
                 GUILayout.FlexibleSpace();
                 GUILayout.EndVertical();
 
@@ -227,7 +300,7 @@ namespace DealerSupplyRun
                 GUILayout.BeginVertical(UiKit.Cell, GUILayout.Height(RowH));
                 GUILayout.FlexibleSpace();
                 GUILayout.Label(SupplyRuns.ProductCarried(d) + " items", UiKit.Caption);
-                GUILayout.Label(MoneyManager.FormatAmount(d.Cash) + " cash", UiKit.Caption);
+                GUILayout.Label(MoneyManager.FormatAmount(d.Cash) + " cash", d.Cash > 0f ? UiKit.CaptionGo : UiKit.CaptionRed); // green with cash, red at $0
                 GUILayout.FlexibleSpace();
                 GUILayout.EndVertical();
                 GUILayout.EndHorizontal();

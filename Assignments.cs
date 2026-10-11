@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using MelonLoader;
 
-namespace DealerSupplyRun
+namespace DealerSelfSupply
 {
     internal enum ShelfRole { Supply, Earnings }
 
@@ -19,8 +19,30 @@ namespace DealerSupplyRun
 
         private static Data _data;
 
+        // In UserData, next to the settings (DealerSelfSupply.cfg) and panel layout.
         private static string FilePath =>
+            Path.Combine(MelonLoader.Utils.MelonEnvironment.UserDataDirectory, "DealerSelfSupply_Shelves.json");
+
+        // Before 1.17.8 the picks were kept in the Mods folder under the mod's old working name.
+        private static string OldFilePath =>
             Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "DealerSupplyRun_Shelves.json");
+
+        private static void MoveOldFile()
+        {
+            try
+            {
+                if (!File.Exists(OldFilePath)) return;
+                if (!File.Exists(FilePath)) File.Copy(OldFilePath, FilePath);
+                File.Delete(OldFilePath);
+                string bak = OldFilePath + ".bak";
+                if (File.Exists(bak)) File.Delete(bak);
+                MelonLogger.Msg("[Dealer Self-supply] Moved your shelf picks to " + FilePath);
+            }
+            catch (Exception e)
+            {
+                MelonLogger.Warning("[Dealer Self-supply] Couldn't move the old shelf picks file: " + e.Message);
+            }
+        }
 
         private static Data Loaded
         {
@@ -28,6 +50,7 @@ namespace DealerSupplyRun
             {
                 if (_data != null) return _data;
                 _data = new Data();
+                MoveOldFile();
                 try
                 {
                     if (File.Exists(FilePath))
@@ -45,7 +68,7 @@ namespace DealerSupplyRun
                 }
                 catch (Exception e)
                 {
-                    MelonLogger.Warning("[DealerSupplyRun] Couldn't read shelf assignments: " + e.Message);
+                    MelonLogger.Warning("[Dealer Self-supply] Couldn't read shelf assignments: " + e.Message);
                 }
                 return _data;
             }
@@ -110,7 +133,7 @@ namespace DealerSupplyRun
             }
             catch (Exception e)
             {
-                MelonLogger.Warning("[DealerSupplyRun] Couldn't save shelf assignments: " + e.Message);
+                MelonLogger.Warning("[Dealer Self-supply] Couldn't save shelf assignments: " + e.Message);
             }
         }
     }

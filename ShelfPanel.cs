@@ -5,7 +5,7 @@ using Il2CppScheduleOne.ObjectScripts;
 using Il2CppScheduleOne.UI;
 using UnityEngine;
 
-namespace DealerSupplyRun
+namespace DealerSelfSupply
 {
     // Beside the storage menu while a placed shelf is open, three separate blocks down the left,
     // laid out like the wiki's dealer table (dark cells, grid lines, green names):
@@ -16,7 +16,7 @@ namespace DealerSupplyRun
     // Host only - the runs happen on the host.
     internal static class ShelfPanel
     {
-        private const float X = 20f, Top = 40f, Width = 640f, Gap = 10f;
+        private const float Right = 28f, Top = 24f, Width = 640f, Gap = 10f; // default: top right of the screen
         private const float WindowChrome = 32f;              // title bar + padding
         private const float RowH = 58f, HeadH = 26f, OwnerRowH = 44f; // table rows (plus 1 px grid line each)
         private const float FaceW = 60f, NameW = 380f, ToggleW = 88f;
@@ -51,12 +51,14 @@ namespace DealerSupplyRun
             if (shelf == null)
             {
                 _shelf = null;
+                _confirm = null;
                 return;
             }
             if (_shelf == null || _shelf.Pointer != shelf.Pointer)
             {
                 _shelf = shelf;
-                SupplyRuns.RefreshShelves();
+                _confirm = null;
+                SupplyRuns.RefreshShelves(force: true);
             }
 
             EnsureStyles();
@@ -70,8 +72,9 @@ namespace DealerSupplyRun
             _dealersFn ??= (GUI.WindowFunction)(Action<int>)(_ => { DrawDealers(); UiLayout.Drag(); });
             _actionsFn ??= (GUI.WindowFunction)(Action<int>)(_ => { DrawActions(); UiLayout.Drag(); });
 
+            int cardRows = (_users.Count + CardsPerRow - 1) / CardsPerRow;
             float ownerH = _users.Count == 0 ? 0f
-                : WindowChrome + HeadH + 1f + _users.Count * (OwnerRowH + 1f) + (_shelfCash > 0f ? HeadH + 1f : 0f) + 4f;
+                : WindowChrome + cardRows * (CardH + 1f) + (_shelfCash > 0f ? HeadH + 1f : 0f) + 4f;
             float listH = WindowChrome + (_dealers.Count == 0 ? 24f : HeadH + 2f + _dealers.Count * (RowH + 1f));
             float actionsH = _dealers.Count > 0 ? WindowChrome + 52f : 0f;
             float nameH = WindowChrome + 34f;
@@ -84,18 +87,18 @@ namespace DealerSupplyRun
             if (scale < 1f) GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
             try
             {
-                float x = X / scale, y = Top / scale;
-                UiLayout.Window("shelf", 739149, new Rect(x, y, Width, nameH), _nameFn, "Shelf name (shown on its sign)");
+                float x = Screen.width / scale - Width - Right, y = Top / scale;
+                UiLayout.Window("shelfPanel", 739149, new Rect(x, y, Width, nameH), _nameFn, "Shelf name (shown on its sign)");
                 y += nameH + Gap;
                 if (ownerH > 0f)
                 {
-                    UiLayout.Window("shelf", 739150, new Rect(x, y, Width, ownerH), _ownerFn, "Whose shelf");
+                    UiLayout.Window("shelfPanel", 739150, new Rect(x, y, Width, ownerH), _ownerFn, "Whose shelf");
                     y += ownerH + Gap;
                 }
-                UiLayout.Window("shelf", 739151, new Rect(x, y, Width, listH), _dealersFn, "Dealers using this shelf");
+                UiLayout.Window("shelfPanel", 739151, new Rect(x, y, Width, listH), _dealersFn, "Dealers using this shelf");
                 y += listH + Gap;
                 if (actionsH > 0f)
-                    UiLayout.Window("shelf", 739152, new Rect(x, y, Width, actionsH), _actionsFn, "");
+                    UiLayout.Window("shelfPanel", 739152, new Rect(x, y, Width, actionsH), _actionsFn, "");
             }
             finally
             {
@@ -156,37 +159,43 @@ namespace DealerSupplyRun
             }
         }
 
-        // Block 1: everyone who uses this shelf - face | name + what it's for | what they carry.
+        // Block 1: everyone who uses this shelf, side by side - a card each with their face, name
+        // and what they're carrying (product, and cash: green, or red at $0). Six to a row.
+        private const int CardsPerRow = 6;
+        private const float CardH = 108f;
+        private static GUIStyle _card, _cardName, _cardCaption, _cardGo, _cardRed;
+
         private static void DrawOwner()
         {
-            GUILayout.BeginVertical(_grid);
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("", _headCell, GUILayout.Width(FaceW), GUILayout.Height(HeadH));
-            GUILayout.Label("Assigned to", _headCell, GUILayout.Width(NameW), GUILayout.Height(HeadH));
-            GUILayout.Label("On them now", _headCell, GUILayout.Height(HeadH));
-            GUILayout.EndHorizontal();
-
-            foreach (Dealer d in _users)
+            if (_cardName == null)
             {
-                bool supply = Assignments.IsAssigned(ShelfRole.Supply, _guid, d.ID);
-                bool earnings = Assignments.IsAssigned(ShelfRole.Earnings, _guid, d.ID);
+                _card = new GUIStyle(_cell) { padding = new RectOffset(3, 3, 4, 4) };
+                _cardName = new GUIStyle(_name) { fontSize = 12, alignment = TextAnchor.MiddleCenter, clipping = TextClipping.Clip };
+                _cardCaption = new GUIStyle(_caption) { alignment = TextAnchor.MiddleCenter };
+                _cardGo = new GUIStyle(UiKit.CaptionGo) { alignment = TextAnchor.MiddleCenter };
+                _cardRed = new GUIStyle(UiKit.CaptionRed) { alignment = TextAnchor.MiddleCenter };
+            }
+            // Cards share the row evenly (the window's inner width, less a pixel of grid line each).
+            float cardW = Mathf.Floor((Width - 22f) / CardsPerRow) - 1f;
 
+            GUILayout.BeginVertical(_grid);
+            for (int i = 0; i < _users.Count; i += CardsPerRow)
+            {
                 GUILayout.BeginHorizontal();
-                FaceCell(d, OwnerRowH, 34f);
-
-                GUILayout.BeginVertical(_cellMine, GUILayout.Width(NameW), GUILayout.Height(OwnerRowH));
+                for (int j = i; j < Mathf.Min(i + CardsPerRow, _users.Count); j++)
+                {
+                    Dealer d = _users[j];
+                    GUILayout.BeginVertical(_card, GUILayout.Width(cardW), GUILayout.Height(CardH));
+                    GUILayout.FlexibleSpace();
+                    GUILayout.BeginHorizontal(); GUILayout.FlexibleSpace(); Portraits.Draw(d, 44f); GUILayout.FlexibleSpace(); GUILayout.EndHorizontal();
+                    GUILayout.Space(3f);
+                    GUILayout.Label(d.FirstName + " " + d.LastName, _cardName, GUILayout.Width(cardW - 6f));
+                    GUILayout.Label(SupplyRuns.ProductCarried(d) + " items", _cardCaption, GUILayout.Width(cardW - 6f));
+                    GUILayout.Label(MoneyManager.FormatAmount(d.Cash), d.Cash > 0f ? _cardGo : _cardRed, GUILayout.Width(cardW - 6f));
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndVertical();
+                }
                 GUILayout.FlexibleSpace();
-                Fixed(d.FirstName + " " + d.LastName, _nameGreen, NameW);
-                Fixed(supply && earnings ? "Product + earnings" : supply ? "Takes product" : "Drops earnings", _caption, NameW);
-                GUILayout.FlexibleSpace();
-                GUILayout.EndVertical();
-
-                GUILayout.BeginVertical(_cell, GUILayout.Height(OwnerRowH));
-                GUILayout.FlexibleSpace();
-                GUILayout.Label(SupplyRuns.ProductCarried(d) + " items of product", _caption);
-                GUILayout.Label(MoneyManager.FormatAmount(d.Cash) + " cash", _caption);
-                GUILayout.FlexibleSpace();
-                GUILayout.EndVertical();
                 GUILayout.EndHorizontal();
             }
 
@@ -221,17 +230,36 @@ namespace DealerSupplyRun
                 GUILayout.BeginHorizontal();
                 FaceCell(d, RowH, 44f);
 
+                bool asking = _confirm != null && _confirm.Dealer == d.Pointer;
+
                 GUILayout.BeginVertical(supply || earnings ? _cellMine : _cell, GUILayout.Width(NameW), GUILayout.Height(RowH));
                 GUILayout.FlexibleSpace();
-                Fixed(d.FirstName + " " + d.LastName, supply || earnings ? _nameGreen : _name, NameW);
-                string activity = Activity(d, out bool alert);
-                Fixed(activity, alert ? UiKit.CaptionRed : _caption, NameW);
-                Fixed(ProductShelfLine(d), _caption, NameW);
+                Fixed(d.FirstName + " " + d.LastName, _name, NameW);
+                if (asking)
+                {
+                    // Orange: this dealer already has a shelf for that - moving them is a choice.
+                    Fixed(_confirm.Line1, UiKit.CaptionWarn, NameW);
+                    Fixed(_confirm.Line2, UiKit.CaptionWarn, NameW);
+                }
+                else
+                {
+                    string activity = Activity(d, out bool alert);
+                    Fixed(activity, Speech.OnTheWay(activity) ? UiKit.CaptionGo : alert ? UiKit.CaptionRed : _caption, NameW);
+                    Fixed(ProductShelfLine(d), _caption, NameW);
+                }
                 GUILayout.FlexibleSpace();
                 GUILayout.EndVertical();
 
-                if (ToggleCell(supply, "Product")) Toggle(ShelfRole.Supply, d);
-                if (ToggleCell(earnings, "Earnings")) Toggle(ShelfRole.Earnings, d);
+                if (asking)
+                {
+                    if (ButtonCell("Continue", _on)) { var c = _confirm; _confirm = null; Toggle(c.Role, d); }
+                    if (ButtonCell("Cancel", _off)) _confirm = null;
+                }
+                else
+                {
+                    if (ToggleCell(supply, "Product")) AskOrToggle(ShelfRole.Supply, d, supply);
+                    if (ToggleCell(earnings, "Earnings")) AskOrToggle(ShelfRole.Earnings, d, earnings);
+                }
                 GUILayout.EndHorizontal();
             }
 
@@ -243,13 +271,17 @@ namespace DealerSupplyRun
         {
             if (GUILayout.Button("Send them to their shelves now", GUILayout.Height(28f)))
             {
+                // Each dealer for what this shelf is to them: their earnings shelf means "put the
+                // cash away" (plus a product top-up), their product shelf means "fetch product".
                 foreach (Dealer d in _dealers)
                 {
-                    if (Assignments.IsAssigned(ShelfRole.Supply, _guid, d.ID) || Assignments.IsAssigned(ShelfRole.Earnings, _guid, d.ID))
-                        SupplyRuns.SendNow(d); // they say where they're off to (shown in their row)
+                    bool supply = Assignments.IsAssigned(ShelfRole.Supply, _guid, d.ID);
+                    bool earnings = Assignments.IsAssigned(ShelfRole.Earnings, _guid, d.ID);
+                    if (!supply && !earnings) continue;
+                    SupplyRuns.SendNow(d, supply && earnings ? (ShelfRole?)null : supply ? ShelfRole.Supply : ShelfRole.Earnings);
                 }
             }
-            GUILayout.Label("Only packaged product is taken.", _caption);
+            GUILayout.Label("Loose product is bagged up when they take it.", _caption);
         }
 
         // --- Cells ---
@@ -283,9 +315,61 @@ namespace DealerSupplyRun
             return clicked;
         }
 
+        private static bool ButtonCell(string label, GUIStyle style)
+        {
+            GUILayout.BeginVertical(_cell, GUILayout.Width(ToggleW), GUILayout.Height(RowH));
+            GUILayout.FlexibleSpace();
+            bool clicked = GUILayout.Button(label, style, GUILayout.Height(26f));
+            GUILayout.FlexibleSpace();
+            GUILayout.EndVertical();
+            return clicked;
+        }
+
+        // A "Yes" that would take a dealer off a shelf they already use (their product shelf
+        // elsewhere, or this one for the other job) asks first, in orange, with Continue / Cancel.
+        private sealed class Confirm
+        {
+            public IntPtr Dealer;
+            public ShelfRole Role;
+            public string Line1, Line2;
+        }
+
+        private static Confirm _confirm;
+
+        private static void AskOrToggle(ShelfRole role, Dealer d, bool isOn)
+        {
+            _confirm = null;
+            if (!isOn)
+            {
+                string job = role == ShelfRole.Supply ? "product" : "earnings";
+                string otherJob = role == ShelfRole.Supply ? "earnings" : "product";
+                string here = SupplyRuns.Quoted(_shelf);
+                var current = SupplyRuns.ShelfFor(d, role);
+                string line1 = null;
+                if (current != null && current.Pointer != _shelf.Pointer)
+                    line1 = $"{d.FirstName} already uses {SupplyRuns.Quoted(current)} for {job}.";
+                else if (Assignments.IsAssigned(role == ShelfRole.Supply ? ShelfRole.Earnings : ShelfRole.Supply, _guid, d.ID))
+                    line1 = $"{d.FirstName} already uses {here} for {otherJob}.";
+                if (line1 != null)
+                {
+                    _confirm = new Confirm
+                    {
+                        Dealer = d.Pointer,
+                        Role = role,
+                        Line1 = line1,
+                        Line2 = $"Use {here} for {Speech.Her(d)} {job} instead?",
+                    };
+                    return;
+                }
+            }
+            Toggle(role, d);
+        }
+
         private static void Toggle(ShelfRole role, Dealer d)
         {
-            Assignments.Toggle(role, _guid, d.ID, SupplyRuns.RefreshShelves().Keys);
+            Assignments.Toggle(role, _guid, d.ID, SupplyRuns.RefreshShelves(force: true).Keys);
+            bool on = Assignments.IsAssigned(role, _guid, d.ID);
+            Core.Log.Msg($"{d.FirstName} {(on ? "now uses" : "no longer uses")} {SupplyRuns.ShelfLabel(_shelf)} for {(role == ShelfRole.Supply ? "product" : "earnings")}.");
             if (role == ShelfRole.Earnings && Assignments.IsAssigned(role, _guid, d.ID)) SupplyRuns.QueueDropOff(d);
         }
 
