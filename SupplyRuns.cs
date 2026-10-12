@@ -3,6 +3,7 @@ using Il2CppScheduleOne.DevUtilities;
 using Il2CppScheduleOne.Economy;
 using Il2CppScheduleOne.ItemFramework;
 using Il2CppScheduleOne.Money;
+using Il2CppScheduleOne.NPCs;
 using Il2CppScheduleOne.NPCs.Behaviour;
 using Il2CppScheduleOne.ObjectScripts;
 using Il2CppScheduleOne.Product;
@@ -34,6 +35,8 @@ namespace DealerSelfSupply
             public bool ToIsland;
             public bool Door;                     // a building's doorway: step through to StepTo here
             public Vector3 StepTo;
+            public Stop For;                      // a door stop: the place it was made for
+            public bool DoorTried;                // a door has been tried for this stop (once is enough)
             public Vector3 ShelfPoint;   // where the dealer stands to use the shelf
             public Vector3 WalkPoint;    // where they're walking: ShelfPoint, or as close as the navmesh gets
             public float Started;
@@ -55,6 +58,8 @@ namespace DealerSelfSupply
             public float RefusedSince; // when the game last dropped their walk order (0: it hasn't)
             public bool Held;          // paused while you talk to them
             public bool Inside;        // stepped into a building through its door (see Door)
+            public Stop EnteredFor;    // the place they went in for - never a reason to come back out (see DoorRules)
+            public int DoorCrossings;  // doorway crossings this trip (capped)
             public Vector3 InsidePoint, OutsidePoint; // that doorway: its inside and outside ends
         }
 
@@ -487,8 +492,9 @@ namespace DealerSelfSupply
             if (!stop.Crossing && !stop.Door)
                 stop.ShelfPoint = stop.Home ? HomeDoorPoint(run.Dealer, out stop.DoorIndex) : StandPoint(run.Dealer, stop.Shelf);
 
-            // Inside a building and the next place is out of it? Back out through the door first.
-            if (!stop.Door && run.Inside && !move.CanGetTo(stop.ShelfPoint, ArriveDistance))
+            // Inside a building and the next place is out of it? Back out through the door first - but
+            // never for the place they came in for (see DoorRules: that loop was in-and-out for ever).
+            if (!stop.Door && DoorRules.ShouldExit(run.Inside, stop == run.EnteredFor, ReachableForDoors(move, stop.ShelfPoint), run.DoorCrossings))
             {
                 PushFront(run, stop);
                 stop = run.Current = ExitDoor(run);
@@ -504,9 +510,12 @@ namespace DealerSelfSupply
             }
             // A shelf inside a house whose inside the game doesn't join up with the street: walk to
             // the front door, step in, and walk on to the shelf.
-            else if (!stop.Crossing && !stop.Door && !stop.Home && !run.Inside && stop.Shelf != null
-                     && !move.CanGetTo(stop.ShelfPoint, ArriveDistance) && TryEnterDoor(run, stop, out Stop door))
+            else if (!stop.Crossing && !stop.Door && !stop.Home && stop.Shelf != null
+                     && DoorRules.ShouldEnter(run.Inside, ReachableForDoors(move, stop.ShelfPoint), stop.DoorTried, run.DoorCrossings)
+                     && TryEnterDoor(run, stop, out Stop door))
             {
+                stop.DoorTried = true;
+                door.For = stop;
                 PushFront(run, stop);
                 stop = run.Current = door;
             }
@@ -521,6 +530,17 @@ namespace DealerSelfSupply
             move.SetDestination(stop.WalkPoint);
             run.NextRepath = Time.time + 3f;
             return true;
+        }
+
+        // "Can the game walk them there?" - what the door rules are asked. (DEVTEST builds only: a file in
+        // UserData makes the answer always "no", which is what a shelf whose standing spot is too far from
+        // the walkable floor looks like - the case that once sent a dealer in and out of a door for ever.)
+        private static bool ReachableForDoors(NPCMovement move, Vector3 point)
+        {
+#if DEVTEST
+            if (File.Exists(Path.Combine(MelonLoader.Utils.MelonEnvironment.UserDataDirectory, "DealerSelfSupply_forceunreachable.txt"))) return false;
+#endif
+            return move.CanGetTo(point, ArriveDistance);
         }
 
         private static void PushFront(Run run, Stop stop)
@@ -736,9 +756,10 @@ namespace DealerSelfSupply
             {
                 // Through the doorway: the game has no walkable way across, so step over it.
                 Compat.Warp(d.Movement, stop.StepTo);
-                if (!run.Inside) { run.Inside = true; run.InsidePoint = stop.StepTo; run.OutsidePoint = stop.ShelfPoint; }
-                else run.Inside = false;
-                Core.Log.Msg($"{d.FirstName} went {(run.Inside ? "in" : "out")} through the door.");
+                run.DoorCrossings++;
+                if (!run.Inside) { run.Inside = true; run.InsidePoint = stop.StepTo; run.OutsidePoint = stop.ShelfPoint; run.EnteredFor = stop.For; }
+                else { run.Inside = false; run.EnteredFor = null; }
+                Core.Log.Msg($"{d.FirstName} went {(run.Inside ? "in" : "out")} through the door (crossing {run.DoorCrossings}).");
             }
             else if (stop.Home)
             {

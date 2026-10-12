@@ -62,14 +62,14 @@ In UserData/DealerSelfSupply.cfg (created the first time the game loads the mod)
 (Values outside the sensible range are pulled back into it. A damaged settings file is repaired when the game starts; the old copy is kept as DealerSelfSupply.cfg.bak.)
 
 [size=4][b]Requirements[/b][/size]
-- Schedule I, IL2CPP version (the normal Steam branch): 0.4.6f13 and 0.4.7. The game's NPC movement changed in 0.4.7 and the mod adapts to the version it finds (see the "[Compat]" line in Latest.log). 0.4.6f13 is the version it was played on; 0.4.7 support is new, so please post your Latest.log lines if something doesn't work there.
+- Schedule I, IL2CPP version (the normal Steam branch): 0.4.6f13 and 0.4.7. The game's NPC movement changed in 0.4.7 and the mod adapts to the version it finds (see the "[Compat]" line in Latest.log). It has been played on 0.4.7f12 (trips, house doors, the island, cash drop-offs); 0.4.6f13 is checked against the game's code. Please post your Latest.log lines if something doesn't work.
 - MelonLoader 0.7.x (made with 0.7.3).
 - Not for the Mono ("alternate") branch.
 - Multiplayer: the host runs it. Only the host sees the panels and the app.
 - Dealers need a shelf or locker you've placed, and must be hired.
 
 [size=4][b]Troubleshooting[/b][/size]
-- Check the mod loaded: MelonLoader/Latest.log should have a line like "[Dealer_Self-supply] Dealer Self-supply 1.20.0 loaded (game 0.4.6f13)", followed by a "[Compat] ..." line saying which form of the game's movement calls it found. If it says "Failed to load Melon" instead, you're probably on the Mono "alternate" branch or an old MelonLoader.
+- Check the mod loaded: MelonLoader/Latest.log should have a line like "[Dealer_Self-supply] Dealer Self-supply 1.20.1 loaded (game 0.4.7f12)", followed by a "[Compat] ..." line saying which form of the game's movement calls it found. If it says "Failed to load Melon" instead, you're probably on the Mono "alternate" branch or an old MelonLoader.
 - Settings are in UserData/DealerSelfSupply.cfg (not MelonPreferences.cfg).
 - Dealers take all product (baggies, jars, bricks, and loose product, which they bag). They don't take ingredients or other items.
 - If a dealer won't go, their message says why (for example "Busy right now (...)"). Please post that, plus the log lines with "Dealer_Self-supply", in the comments.
@@ -78,6 +78,11 @@ In UserData/DealerSelfSupply.cfg (created the first time the game loads the mod)
 - Mods that pause or freeze far-away NPCs (like Siesta - NPC LOD) can stop dealers setting off. Try without them if dealers never move.
 - To uninstall, delete "Dealer Self-supply.dll". Your shelf picks are kept in UserData/DealerSelfSupply_Shelves.json, which you can delete too.
 
+
+CHANGELOG 1.20.1
+----------------
+- Fixed a dealer walking in and out of a building's door over and over (reported on another player's server: Benji at the Motel Room). When the game says a shelf can't be reached even from inside its room, the dealer now goes in once, walks up to the shelf as far as the floor allows, steps up to it, and comes out once at the end. A trip crosses a doorway at most four times, whatever happens.
+- Tested in the game on 0.4.7f12 with the game told every shelf is unreachable: Jane, Molly and Wei each went in once and out once, and the Motel rack's cash drops went through.
 
 CHANGELOG 1.20.0
 ----------------
