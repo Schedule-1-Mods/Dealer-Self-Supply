@@ -11,7 +11,7 @@ Stop running product to your dealers and collecting their cash by hand. Give eac
 
 [size=4][b]Installation instructions[/b][/size]
 1. Install MelonLoader 0.7.x into Schedule I and start the game once so it sets itself up.
-2. Put "Dealer Self-supply.dll" into the game's Mods folder.
+2. Put "✽ Dealer Self-supply.dll" into the game's Mods folder.
 3. Start the game and load your save.
 
 [size=4][b]Main features[/b][/size]
@@ -69,14 +69,14 @@ In UserData/DealerSelfSupply.cfg (created the first time the game loads the mod)
 - Dealers need a shelf or locker you've placed, and must be hired.
 
 [size=4][b]Troubleshooting[/b][/size]
-- Check the mod loaded: MelonLoader/Latest.log should have a line like "[Dealer_Self-supply] Dealer Self-supply 1.20.1 loaded (game 0.4.7f12)", followed by a "[Compat] ..." line saying which form of the game's movement calls it found. If it says "Failed to load Melon" instead, you're probably on the Mono "alternate" branch or an old MelonLoader.
+- Check the mod loaded: MelonLoader/Latest.log should have a line like "[✽_Dealer_Self-supply] Dealer Self-supply 1.20.1 loaded (game 0.4.7f12)", followed by a "[Compat] ..." line saying which form of the game's movement calls it found. If it says "Failed to load Melon" instead, you're probably on the Mono "alternate" branch or an old MelonLoader.
 - Settings are in UserData/DealerSelfSupply.cfg (not MelonPreferences.cfg).
 - Dealers take all product (baggies, jars, bricks, and loose product, which they bag). They don't take ingredients or other items.
-- If a dealer won't go, their message says why (for example "Busy right now (...)"). Please post that, plus the log lines with "Dealer_Self-supply", in the comments.
+- If a dealer won't go, their message says why (for example "Busy right now (...)"). Please post that, plus the log lines with "Dealer_Self-supply" in them, in the comments.
 - If the game can't find a path to the shelf (for example a shelf inside a building dealers can't walk into), the dealer is moved there after 8 seconds. The log says "can't find a way to ...".
 - A dealer who gets stuck on the way is nudged after 20 seconds, then moved to the shelf. The log line "hasn't moved in 20s" says where; please post it if it keeps happening.
 - Mods that pause or freeze far-away NPCs (like Siesta - NPC LOD) can stop dealers setting off. Try without them if dealers never move.
-- To uninstall, delete "Dealer Self-supply.dll". Your shelf picks are kept in UserData/DealerSelfSupply_Shelves.json, which you can delete too.
+- To uninstall, delete "✽ Dealer Self-supply.dll". Your shelf picks are kept in UserData/DealerSelfSupply_Shelves.json, which you can delete too.
 
 
 CHANGELOG 1.20.1
