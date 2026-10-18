@@ -92,10 +92,39 @@ namespace DealerSelfSupply
             _nextCheck = Time.time + 15f; // let the save finish loading
         }
 
+        // The host (or you, playing alone): dealers walk and items move here, so everything runs here.
         public static bool IsHost
         {
-            get { try { return InstanceFinder.IsServer; } catch { return false; } }
+            get
+            {
+#if DEVTEST
+                if (ForcedJoiner) return false;
+#endif
+                try { return InstanceFinder.IsServer; } catch { return false; }
+            }
         }
+
+        // Someone who joined another player's game. Dealers are the host's to run, so a joiner gets a
+        // read-only overview (the phone app) built from what the game itself shares with them.
+        public static bool IsJoiner
+        {
+            get
+            {
+#if DEVTEST
+                if (ForcedJoiner) return true;
+#endif
+                try { return InstanceFinder.IsClient && !InstanceFinder.IsServer; } catch { return false; }
+            }
+        }
+
+        // Host or joiner: gets the phone app (the joiner's one is read-only).
+        public static bool HasApp => IsHost || IsJoiner;
+
+#if DEVTEST
+        // Test only: a file in UserData makes this player act as a joiner, to see that view in single player.
+        private static bool ForcedJoiner =>
+            File.Exists(Path.Combine(MelonLoader.Utils.MelonEnvironment.UserDataDirectory, "DealerSelfSupply_forcejoiner.txt"));
+#endif
 
         public static bool IsOnRun(Dealer d) => d != null && _runs.ContainsKey(d.Pointer);
 

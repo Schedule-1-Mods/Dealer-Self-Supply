@@ -1,7 +1,7 @@
 using MelonLoader;
 using MelonLoader.Preferences;
 
-[assembly: MelonInfo(typeof(DealerSelfSupply.Core), "✽ Dealer Self-supply", "1.20.1", "Cassy")]
+[assembly: MelonInfo(typeof(DealerSelfSupply.Core), "✽ Dealer Self-supply", "1.21.0", "Cassy")]
 [assembly: MelonGame("TVGS", "Schedule I")]
 
 namespace DealerSelfSupply

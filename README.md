@@ -30,7 +30,7 @@ Afterwards they go back to their usual routine. **Send them to their shelves now
 
 **When you send them** (shelf panel, dealer chat or phone app), your orders come first: they go straight away, even mid-deal. The deal waits until they're done. With no cash to drop off they say "I have $0, I'll go back home." On their own, a dealer won't set off while they're on a deal, knocked out or busy with something else. If a new deal comes up mid-trip, they go to the deal and finish the trip afterwards. If they can't walk all the way to a shelf, they walk as close as they can and step the rest. If a trip takes too long, they're warped there.
 
-In multiplayer only the host runs this, and only the host sees the options.
+In multiplayer the host runs everything (dealers only walk and move items on the host's game), so only the host gets the talk menu, the shelf panel and the app's buttons. A player who joins a game with the mod installed still gets the Dealer Self-supply app: a read-only overview of the dealers (face, items on them, cash, whether they're on a deal). Shelf assignments live on the host's PC, so a joiner can't see or change them - they ask the host.
 
 
 ## Phone app

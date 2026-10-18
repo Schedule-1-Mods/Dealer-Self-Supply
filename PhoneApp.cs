@@ -23,7 +23,7 @@ namespace DealerSelfSupply
         private static GameObject _icon;
         private static float _nextTry;
         private static bool _open;
-        private static GUI.WindowFunction _fn;
+        private static GUI.WindowFunction _fn, _fnJoiner;
 
         public static void Reset()
         {
@@ -43,7 +43,7 @@ namespace DealerSelfSupply
         {
             if (_open && !PhoneOpen()) _open = false; // phone put away
             UpdateBadge();
-            if (Time.time < _nextTry || !SupplyRuns.IsHost) return;
+            if (Time.time < _nextTry || !SupplyRuns.HasApp) return;
             _nextTry = Time.time + 2f;
             if (_icon != null) { KeepIconPlaced(); return; }
             try { CreateIcon(); }
@@ -105,6 +105,7 @@ namespace DealerSelfSupply
                 try { home.appIcons.Add(button); } catch { }
             }
             Core.Log.Msg("Added the Dealer Self-supply app to the phone.");
+            if (SupplyRuns.IsJoiner) Core.Log.Msg("You joined someone else's game: the host runs the dealers, so the Dealer Self-supply app here is a read-only overview (shelves and Send buttons are the host's).");
         }
 
         // The red number on the icon: dealer texts since you last opened the app (hidden at 0).
@@ -235,21 +236,91 @@ namespace DealerSelfSupply
 
         public static void Draw()
         {
-            if (!_open || !Core.InMain || !SupplyRuns.IsHost || !PhoneOpen()) return;
+            if (!_open || !Core.InMain || !SupplyRuns.HasApp || !PhoneOpen()) return;
             UiKit.EnsureStyles();
             _fn ??= (GUI.WindowFunction)(Action<int>)(_ => { DrawWindow(); UiLayout.Drag(); });
+            _fnJoiner ??= (GUI.WindowFunction)(Action<int>)(_ => { DrawJoinerWindow(); UiLayout.Drag(); });
 
+            // The host's window has the shelves and the buttons; a joiner's is a smaller read-only overview.
+            bool joiner = SupplyRuns.IsJoiner;
+            float w = joiner ? JoinerWidth : Width;
             var dealers = SupplyRuns.HiredDealers().ToList();
-            float h = 30f + 70f + HeadH + 2f + Math.Max(1, dealers.Count) * (RowH + 1f) + 90f;
-            float scale = Mathf.Min(1f, (Screen.height - 40f) / h, (Screen.width - 40f) / Width);
+            float h = joiner
+                ? 30f + 70f + HeadH + 2f + Math.Max(1, dealers.Count) * (RowH + 1f) + 80f
+                : 30f + 70f + HeadH + 2f + Math.Max(1, dealers.Count) * (RowH + 1f) + 90f;
+            float scale = Mathf.Min(1f, (Screen.height - 40f) / h, (Screen.width - 40f) / w);
             Matrix4x4 previous = GUI.matrix;
             if (scale < 1f) GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
             try
             {
-                float x = (Screen.width / scale - Width) * 0.5f, y = (Screen.height / scale - h) * 0.5f;
-                UiLayout.Window("app", 740400, new Rect(x, y, Width, h), _fn, "");
+                float x = (Screen.width / scale - w) * 0.5f, y = (Screen.height / scale - h) * 0.5f;
+                UiLayout.Window("app", 740400, new Rect(x, y, w, h), joiner ? _fnJoiner : _fn, "");
             }
             finally { GUI.matrix = previous; }
+        }
+
+        // --- A joiner's view: what the game shares with every player (who's hired, what they carry, their
+        // cash). Shelf assignments and the Send buttons live on the host's PC, so they aren't here. ---
+
+        private const float JoinerWidth = 760f;
+
+        private static void DrawJoinerWindow()
+        {
+            var dealers = SupplyRuns.HiredDealers().ToList();
+            float nameW = JoinerWidth - FaceW - 230f - 24f;
+
+            GUILayout.BeginVertical(UiKit.Grid);
+            GUILayout.BeginVertical(UiKit.Cell, GUILayout.Height(60f));
+            GUILayout.Label("Dealer Self-supply", UiKit.NameBig);
+            GUILayout.Label("You joined this game: the host sets the dealers' shelves and sends them. This is how they're doing.", UiKit.Caption);
+            GUILayout.EndVertical();
+            GUILayout.EndVertical();
+            GUILayout.Space(8f);
+
+            GUILayout.BeginVertical(UiKit.Grid);
+            GUILayout.BeginHorizontal();
+            Head("", FaceW); Head("Dealer", nameW);
+            GUILayout.Label("On them", UiKit.HeadCell, GUILayout.Height(HeadH));
+            GUILayout.EndHorizontal();
+
+            if (dealers.Count == 0)
+                GUILayout.Label("No dealers have been hired in this game yet.", UiKit.HeadCell, GUILayout.Height(RowH));
+
+            foreach (Dealer d in dealers)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.BeginVertical(UiKit.Cell, GUILayout.Width(FaceW), GUILayout.Height(RowH));
+                GUILayout.FlexibleSpace();
+                GUILayout.BeginHorizontal(); GUILayout.FlexibleSpace(); Portraits.Draw(d, 44f); GUILayout.FlexibleSpace(); GUILayout.EndHorizontal();
+                GUILayout.FlexibleSpace();
+                GUILayout.EndVertical();
+
+                int items = SupplyRuns.ProductCarried(d);
+                bool onDeal = false;
+                try { onDeal = d.currentContract != null; } catch { }
+                GUILayout.BeginVertical(UiKit.Cell, GUILayout.Width(nameW), GUILayout.Height(RowH));
+                GUILayout.FlexibleSpace();
+                Fixed(d.FirstName + " " + d.LastName, UiKit.Name, nameW);
+                if (onDeal) Fixed("On a deal", UiKit.CaptionGo, nameW);
+                else Fixed(SupplyRuns.IdleDescription(d), items == 0 ? UiKit.CaptionRed : UiKit.Caption, nameW);
+                GUILayout.FlexibleSpace();
+                GUILayout.EndVertical();
+
+                GUILayout.BeginVertical(UiKit.Cell, GUILayout.Height(RowH));
+                GUILayout.FlexibleSpace();
+                GUILayout.Label(items + " items", UiKit.Caption);
+                GUILayout.Label(MoneyManager.FormatAmount(d.Cash) + " cash", d.Cash > 0f ? UiKit.CaptionGo : UiKit.CaptionRed);
+                GUILayout.FlexibleSpace();
+                GUILayout.EndVertical();
+                GUILayout.EndHorizontal();
+            }
+            GUILayout.EndVertical();
+            GUILayout.Space(8f);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Ask the host to send a dealer or change a shelf.", UiKit.Caption);
+            if (GUILayout.Button("Close", UiKit.Off, GUILayout.Width(120f), GUILayout.Height(34f))) _open = false;
+            GUILayout.EndHorizontal();
         }
 
         private static void DrawWindow()

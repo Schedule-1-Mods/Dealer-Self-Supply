@@ -65,11 +65,12 @@ In UserData/DealerSelfSupply.cfg (created the first time the game loads the mod)
 - Schedule I, IL2CPP version (the normal Steam branch): 0.4.6f13 and 0.4.7. The game's NPC movement changed in 0.4.7 and the mod adapts to the version it finds (see the "[Compat]" line in Latest.log). It has been played on 0.4.7f12 (trips, house doors, the island, cash drop-offs); 0.4.6f13 is checked against the game's code. Please post your Latest.log lines if something doesn't work.
 - MelonLoader 0.7.x (made with 0.7.3).
 - Not for the Mono ("alternate") branch.
-- Multiplayer: the host runs it. Only the host sees the panels and the app.
+- Multiplayer: the host runs it and sets everything up. Players who join get the phone app as a read-only overview of the dealers (the mod has to be installed on their PC too); the talk menu, shelf panel and Send buttons are the host's only.
 - Dealers need a shelf or locker you've placed, and must be hired.
+- A friend who joined your game doesn't see the app: they need this mod (1.21.0 or newer) installed on their own PC. It then shows in their phone with "You joined someone else's game ..." in their Latest.log.
 
 [size=4][b]Troubleshooting[/b][/size]
-- Check the mod loaded: MelonLoader/Latest.log should have a line like "[✽_Dealer_Self-supply] Dealer Self-supply 1.20.1 loaded (game 0.4.7f12)", followed by a "[Compat] ..." line saying which form of the game's movement calls it found. If it says "Failed to load Melon" instead, you're probably on the Mono "alternate" branch or an old MelonLoader.
+- Check the mod loaded: MelonLoader/Latest.log should have a line like "[✽_Dealer_Self-supply] Dealer Self-supply 1.21.0 loaded (game 0.4.7f12)", followed by a "[Compat] ..." line saying which form of the game's movement calls it found. If it says "Failed to load Melon" instead, you're probably on the Mono "alternate" branch or an old MelonLoader.
 - Settings are in UserData/DealerSelfSupply.cfg (not MelonPreferences.cfg).
 - Dealers take all product (baggies, jars, bricks, and loose product, which they bag). They don't take ingredients or other items.
 - If a dealer won't go, their message says why (for example "Busy right now (...)"). Please post that, plus the log lines with "Dealer_Self-supply" in them, in the comments.
@@ -78,6 +79,11 @@ In UserData/DealerSelfSupply.cfg (created the first time the game loads the mod)
 - Mods that pause or freeze far-away NPCs (like Siesta - NPC LOD) can stop dealers setting off. Try without them if dealers never move.
 - To uninstall, delete "✽ Dealer Self-supply.dll". Your shelf picks are kept in UserData/DealerSelfSupply_Shelves.json, which you can delete too.
 
+
+CHANGELOG 1.21.0
+----------------
+- Multiplayer: players who join someone else's game now get the Dealer Self-supply phone app too. It's a read-only overview of the dealers (face, items on them, cash, on a deal or not); the host still sets the shelves and sends the dealers, because that's where dealers walk. Before, a joiner saw no app at all.
+- A joiner's log says why the app is read-only ("You joined someone else's game ...").
 
 CHANGELOG 1.20.1
 ----------------
