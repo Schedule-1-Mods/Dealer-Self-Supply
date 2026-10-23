@@ -47,6 +47,7 @@ namespace DealerSelfSupply
 
         public static void Draw()
         {
+            if (!Core.ShowShelfPanel.Value) { _shelf = null; _confirm = null; return; }
             PlaceableStorageEntity shelf = OpenShelf();
             if (shelf == null)
             {

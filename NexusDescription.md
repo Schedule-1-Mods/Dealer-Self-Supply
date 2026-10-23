@@ -59,6 +59,9 @@ In UserData/DealerSelfSupply.cfg (created the first time the game loads the mod)
 - NotificationSeconds (10)
 - RestockAtNight (true): dealers who are in bed also go for product when sold out. Set it to false to let them sleep.
 - LogSlowFrames (false): log a line whenever one of the mod's jobs takes over 8 ms.
+- ShowShelfPanel (true): the dealer panel on the right of an open shelf. Set it to false to leave the shelf screen as the game made it.
+- ShowTalkMenu (true): the shelf menu on the left when you talk to a dealer. Set it to false to only see the game's own dialogue.
+- CashDelivery (0): when dealers drop their cash off. 0 = after every deal, 1 = only when they go for more product, 2 = once a day, each morning. You can always send a dealer from the talk menu or the phone app.
 (Values outside the sensible range are pulled back into it. A damaged settings file is repaired when the game starts; the old copy is kept as DealerSelfSupply.cfg.bak.)
 
 [size=4][b]Requirements[/b][/size]
@@ -84,6 +87,9 @@ CHANGELOG 1.21.0
 ----------------
 - Multiplayer: players who join someone else's game now get the Dealer Self-supply phone app too. It's a read-only overview of the dealers (face, items on them, cash, on a deal or not); the host still sets the shelves and sends the dealers, because that's where dealers walk. Before, a joiner saw no app at all.
 - A joiner's log says why the app is read-only ("You joined someone else's game ...").
+- New setting CashDelivery: dealers can drop their cash off after every deal (as before), only when they go for more product, or once a day each morning (asked for by Bruvaha).
+- New settings ShowShelfPanel and ShowTalkMenu turn off the panels the mod adds to an open shelf and to a conversation (asked for by Sativa420Lord). A hidden talk menu still holds the dealer's trip while you talk.
+- The log now says why a trip ended early ("a deal came up", "knocked out", or what else they were busy with).
 
 CHANGELOG 1.20.1
 ----------------

@@ -24,6 +24,9 @@ namespace DealerSelfSupply
         internal static MelonPreferences_Entry<bool> Notifications;
         internal static MelonPreferences_Entry<float> NotificationSeconds;
         internal static MelonPreferences_Entry<bool> LogSlowFrames;
+        internal static MelonPreferences_Entry<bool> ShowShelfPanel;
+        internal static MelonPreferences_Entry<bool> ShowTalkMenu;
+        internal static MelonPreferences_Entry<int> CashDelivery;
 
         internal static bool InMain;
 
@@ -36,6 +39,7 @@ namespace DealerSelfSupply
             {
                 "CheckIntervalSeconds", "RestockWhenEmptyPercent", "RestockWhenSoldOut", "RestockAtNight", "TravelSpeedMultiplier",
                 "MaxTravelSeconds", "EmptyShelfCooldownSeconds", "ShowNotifications", "NotificationSeconds", "LogSlowFrames",
+                "ShowShelfPanel", "ShowTalkMenu", "CashDelivery",
             };
             // Before MelonLoader reads it: one table, current settings only (it ignores a file with a table twice).
             string repaired = SettingsFile.Repair(cfg, keys);
@@ -53,6 +57,9 @@ namespace DealerSelfSupply
             Notifications = prefs.CreateEntry("ShowNotifications", true, "Pop up a notification when a dealer restocks or drops off cash");
             NotificationSeconds = prefs.CreateEntry("NotificationSeconds", 10f, "How long those pop-ups stay on screen", validator: new ValueRange<float>(2f, 60f));
             LogSlowFrames = prefs.CreateEntry("LogSlowFrames", false, "Write a line to the log whenever one of the mod's jobs takes over 8 ms (for tracking down stutters)");
+            ShowShelfPanel = prefs.CreateEntry("ShowShelfPanel", true, "Show the dealer panel on the right when you open a shelf (false: leave the shelf screen as the game made it)");
+            ShowTalkMenu = prefs.CreateEntry("ShowTalkMenu", true, "Show the shelf menu on the left when you talk to a dealer (false: only the game's own dialogue; dealers are still set up from the phone app and the shelf panel)");
+            CashDelivery = prefs.CreateEntry("CashDelivery", 0, "When dealers drop their cash off: 0 = after every deal, 1 = only when they go for more product, 2 = once a day, each morning (you can always send them from the talk menu or the phone app)", validator: new ValueRange<int>(0, 2));
 
             // Its own settings file, written straight away - easy to find, and there even before
             // the game has been closed once (MelonPreferences.cfg is only written on exit).

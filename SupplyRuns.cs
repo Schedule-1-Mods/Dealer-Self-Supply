@@ -83,6 +83,7 @@ namespace DealerSelfSupply
             _shelves.Clear();
             _wasDealing.Clear();
             _homeward.Clear();
+            _cashDay = -1;
             _lastWhy.Clear();
             _sendWhenFree.Clear();
             _everSeen.Clear();
@@ -263,8 +264,23 @@ namespace DealerSelfSupply
             catch { return false; }
         }
 
+        // CashDelivery 2: each new morning everyone carrying cash takes it to EARNINGS.
+        private static int _cashDay = -1;
+        private static void QueueDailyCash()
+        {
+            int day;
+            try { day = NetworkSingleton<Il2CppScheduleOne.GameTime.TimeManager>.Instance.ElapsedDays; }
+            catch { return; }
+            bool newDay = _cashDay >= 0 && day != _cashDay;
+            _cashDay = day;
+            if (!newDay || Core.CashDelivery.Value != 2) return;
+            foreach (Dealer d in HiredDealers())
+                if (d.Cash >= 1f && ShelfFor(d, ShelfRole.Earnings) != null) _homeward.Add(d.Pointer);
+        }
+
         private static void CheckDealers()
         {
+            QueueDailyCash();
             foreach (Dealer d in HiredDealers())
             {
                 // A shelf this dealer used in this save has been picked up (not seen for two minutes):
@@ -317,7 +333,7 @@ namespace DealerSelfSupply
                 IntPtr key = d.Pointer;
                 bool dealing = d.currentContract != null;
                 if (dealing) _wasDealing.Add(key);
-                else if (_wasDealing.Remove(key) && d.Cash >= 1f && ShelfFor(d, ShelfRole.Earnings) != null) _homeward.Add(key);
+                else if (_wasDealing.Remove(key) && d.Cash >= 1f && Core.CashDelivery.Value == 0 && ShelfFor(d, ShelfRole.Earnings) != null) _homeward.Add(key);
 
                 // Heading home (free again, no new deal lined up): make the drop-off.
                 if (_homeward.Contains(key) && !IsOnRun(d) && BusyReason(d) == null) LogWhy(d, "carrying cash", TryStart(d, false));
@@ -424,7 +440,9 @@ namespace DealerSelfSupply
             var run = new Run { Dealer = d, Priority = manual };
             PlaceableStorageEntity earnings = only == ShelfRole.Supply ? null : ShelfFor(d, ShelfRole.Earnings);
             PlaceableStorageEntity supply = ShelfFor(d, ShelfRole.Supply);
-            bool cashStop = earnings != null && d.Cash >= 1f && (manual || _homeward.Contains(d.Pointer));
+            // CashDelivery 1: the cash comes along on the trip for more product (they're out of stock).
+            bool cashStop = earnings != null && d.Cash >= 1f
+                && (manual || _homeward.Contains(d.Pointer) || (Core.CashDelivery.Value == 1 && only == null && NeedsRestock(d)));
             if (cashStop)
                 run.Stops.Enqueue(new Stop { Role = ShelfRole.Earnings, Shelf = earnings });
             // Product: when sent for it, when sold out, or topping up on any cash drop.
@@ -700,7 +718,8 @@ namespace DealerSelfSupply
             bool talking = Talking(d);
             if (!d.IsConscious || dealInTheWay || (BusyBehaviour(d) != null && !IsDealing(d) && !talking))
             {
-                Core.Log.Msg($"{d.FirstName}'s shelf run was interrupted.");
+                string why = !d.IsConscious ? "knocked out" : dealInTheWay ? "a deal came up" : "busy (" + BusyBehaviour(d) + ")";
+                Core.Log.Msg($"{d.FirstName}'s shelf run was interrupted: {why}.");
                 EndRun(run);
                 return false;
             }

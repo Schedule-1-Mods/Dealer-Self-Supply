@@ -52,6 +52,9 @@ With the Greenhouse Island mod installed, dealers walk to shelves on the island:
 | NotificationSeconds | 10 | How long those notifications stay on screen |
 | RestockAtNight | true | Dealers who are in bed (inside their home at night) also go for product when sold out; false lets them sleep |
 | LogSlowFrames | false | Log a line whenever one of the mod's jobs takes over 8 ms (for tracking down stutters) |
+| ShowShelfPanel | true | Show the dealer panel on the right when you open a shelf (false leaves the shelf screen as the game made it) |
+| ShowTalkMenu | true | Show the shelf menu on the left when you talk to a dealer (false: only the game's own dialogue; set shelves from the phone app or the shelf panel) |
+| CashDelivery | 0 | When dealers drop cash off: 0 after every deal, 1 only when they go for more product, 2 once a day each morning (you can always send them yourself) |
 
 Values outside the sensible range are pulled back into it. If the settings file ever gets damaged (for example after switching between mod versions), the mod repairs it when the game starts and keeps the old copy as `DealerSelfSupply.cfg.bak`.
 

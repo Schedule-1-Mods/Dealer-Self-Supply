@@ -89,6 +89,9 @@ namespace DealerSelfSupply
                 }
             }
 
+            // Hidden by the setting: the conversation still counts as "talking" above (their trip waits), just no menu.
+            if (!Core.ShowTalkMenu.Value) return;
+
             UiKit.EnsureStyles();
             _drawing = d;
             _headingFn ??= (GUI.WindowFunction)(Action<int>)(_ => { DrawHeading(); UiLayout.Drag(); });
